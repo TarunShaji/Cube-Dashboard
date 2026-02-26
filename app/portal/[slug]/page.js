@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ExternalLink, BarChart3, CheckCircle2, Loader2, Lock, ChevronDown, ChevronRight, Link2 } from 'lucide-react'
+import { ExternalLink, BarChart3, CheckCircle2, Loader2, Lock, ChevronDown, ChevronRight, Link2, FileText } from 'lucide-react'
 
 const statusColors = {
   'Completed':      'bg-green-100 text-green-700 border-green-200',
@@ -26,6 +26,18 @@ const approvalBadge = {
   'Required Changes': 'bg-red-100 text-red-700 border-red-200',
   'Pending Review':   'bg-gray-100 text-gray-500 border-gray-200',
 }
+const topicApprovalColors = {
+  'Approved':  'bg-green-500 text-white hover:bg-green-600',
+  'Rejected':  'bg-red-500 text-white hover:bg-red-600',
+  'Pending':   'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200',
+}
+const blogStatusColors = {
+  'Published':         'bg-green-100 text-green-700 border-green-200',
+  'Sent for Approval': 'bg-amber-100 text-amber-700 border-amber-200',
+  'In Progress':       'bg-blue-100 text-blue-700 border-blue-200',
+  'Draft':             'bg-gray-100 text-gray-600 border-gray-200',
+  'Rejected':          'bg-red-100 text-red-700 border-red-200',
+}
 const typeColors = {
   'Monthly SEO Report': 'bg-blue-50 text-blue-700',
   'Weekly Update':      'bg-green-50 text-green-700',
@@ -35,6 +47,8 @@ const typeColors = {
 }
 
 const APPROVAL_OPTIONS = ['Pending Review', 'Approved', 'Required Changes']
+const TOPIC_APPROVAL_OPTIONS = ['Pending', 'Approved', 'Rejected']
+const BLOG_APPROVAL_OPTIONS = ['Pending Review', 'Approved', 'Changes Required']
 
 function ApprovalButton({ taskId, current, slug, onUpdate }) {
   const [loading, setLoading]   = useState(false)
