@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { Plus, ExternalLink, Trash2, Link2, Settings, BarChart3 } from 'lucide-react'
+import { Plus, ExternalLink, Trash2, Link2, Settings, BarChart3, FileText } from 'lucide-react'
 
 const STATUSES        = ['To Be Started', 'In Progress', 'To Be Approved', 'Completed', 'Recurring', 'Blocked']
 const CATEGORIES      = ['SEO & Content', 'Design', 'Development', 'Page Speed', 'Technical SEO', 'Link Building', 'Paid Ads', 'Email Marketing', 'LLM SEO', 'Reporting', 'Other']
@@ -19,6 +19,10 @@ const PRIORITIES      = ['P0', 'P1', 'P2', 'P3']
 const APPROVALS       = ['Pending Review', 'Approved', 'Required Changes']
 const REPORT_TYPES    = ['Monthly SEO Report', 'Weekly Update', 'Audit Report', 'Ad Performance', 'Custom']
 const SERVICE_TYPES   = ['SEO', 'Email Marketing', 'Paid Ads', 'SEO + Email', 'SEO + Paid Ads', 'All']
+const OUTLINE_STATUSES = ['Pending', 'Submitted', 'Approved', 'Rejected']
+const TOPIC_APPROVALS  = ['Pending', 'Approved', 'Rejected']
+const BLOG_APPROVALS   = ['Pending Review', 'Approved', 'Changes Required']
+const BLOG_STATUSES    = ['Draft', 'In Progress', 'Sent for Approval', 'Published', 'Rejected']
 
 const statusColors = {
   'Completed':      'bg-green-100 text-green-700 border-green-200',
