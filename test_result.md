@@ -201,6 +201,42 @@ backend:
         agent: "main"
         comment: "POST /api/seed creates 5 team members, 3 clients, 11 tasks, 3 reports."
 
+  - task: "Content Calendar CRUD API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "GET/POST /api/content, GET/PUT/DELETE /api/content/:id all working. Content items have rich fields: blog_title, client_id, week, blog_type, keywords, writer, outline, various status fields, approval dates."
+
+  - task: "Content Bulk Import API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "POST /api/content/bulk successfully imports multiple content items at once with client_id and items array."
+
+  - task: "Content Portal Approval API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "PUT /api/portal/:slug/content/:id/approval allows clients to update topic_approval_status and blog_approval_status through their portal without team auth."
+
 frontend:
   - task: "Login page"
     implemented: true
