@@ -638,6 +638,163 @@ async function handleRoute(request, { params }) {
       return handleCORS(NextResponse.json({ message: 'CubeHQ Dashboard API v1.0' }))
     }
 
+    // ===== CONTENT CALENDAR ROUTES =====
+    if (route === '/content' && method === 'GET') {
+      const url = new URL(request.url)
+      const clientId = url.searchParams.get('client_id')
+      const query = clientId ? { client_id: clientId } : {}
+      const items = await database.collection('content_items').find(query).sort({ created_at: -1 }).toArray()
+      const clean = items.map(({ _id, ...item }) => item)
+      
+      // Enrich with client names
+      const clientIds = [...new Set(clean.map(i => i.client_id))]
+      const clients = clientIds.length > 0 ? await database.collection('clients').find({ id: { $in: clientIds } }).toArray() : []
+      const clientMap = Object.fromEntries(clients.map(c => [c.id, c.name]))
+      const enriched = clean.map(i => ({ ...i, client_name: clientMap[i.client_id] || 'Unknown' }))
+      return handleCORS(NextResponse.json(enriched))
+    }
+
+    if (route === '/content' && method === 'POST') {
+      const user = verifyToken(request)
+      if (!user) return handleCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+      const body = await request.json()
+      const { blog_title, client_id } = body
+      if (!blog_title || !client_id) return handleCORS(NextResponse.json({ error: 'blog_title and client_id required' }, { status: 400 }))
+      const item = {
+        id: uuidv4(),
+        client_id,
+        week: body.week || '',
+        blog_type: body.blog_type || '',
+        blog_title,
+        primary_keyword: body.primary_keyword || '',
+        secondary_keywords: body.secondary_keywords || '',
+        comments: body.comments || '',
+        writer: body.writer || '',
+        outline: body.outline || '',
+        outline_status: body.outline_status || 'Pending',
+        content: body.content || '',
+        ai_percentage: body.ai_percentage || '',
+        edited_on: body.edited_on || null,
+        topic_approval_status: body.topic_approval_status || 'Pending',
+        topic_approval_date: body.topic_approval_date || null,
+        blog_approval_status: body.blog_approval_status || 'Pending Review',
+        blog_approval_date: body.blog_approval_date || null,
+        qc_status: body.qc_status || '',
+        blog_status: body.blog_status || 'Draft',
+        blog_link: body.blog_link || '',
+        published_date: body.published_date || null,
+        created_at: new Date(),
+        updated_at: new Date()
+      }
+      await database.collection('content_items').insertOne(item)
+      return handleCORS(NextResponse.json(item))
+    }
+
+    const contentByIdMatch = route.match(/^\/content\/([^/]+)$/)
+    if (contentByIdMatch) {
+      const contentId = contentByIdMatch[1]
+      if (method === 'GET') {
+        const item = await database.collection('content_items').findOne({ id: contentId })
+        if (!item) return handleCORS(NextResponse.json({ error: 'Content item not found' }, { status: 404 }))
+        const { _id, ...result } = item
+        return handleCORS(NextResponse.json(result))
+      }
+      if (method === 'PUT') {
+        const user = verifyToken(request)
+        if (!user) return handleCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+        const body = await request.json()
+        const { _id, id, ...updateData } = body
+        updateData.updated_at = new Date()
+        await database.collection('content_items').updateOne({ id: contentId }, { $set: updateData })
+        const updated = await database.collection('content_items').findOne({ id: contentId })
+        const { _id: _, ...result } = updated
+        return handleCORS(NextResponse.json(result))
+      }
+      if (method === 'DELETE') {
+        const user = verifyToken(request)
+        if (!user) return handleCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+        await database.collection('content_items').deleteOne({ id: contentId })
+        return handleCORS(NextResponse.json({ message: 'Content item deleted' }))
+      }
+    }
+
+    // Bulk import content items
+    if (route === '/content/bulk' && method === 'POST') {
+      const user = verifyToken(request)
+      if (!user) return handleCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+      const body = await request.json()
+      const { items, client_id } = body
+      if (!items || !Array.isArray(items) || !client_id) {
+        return handleCORS(NextResponse.json({ error: 'items array and client_id required' }, { status: 400 }))
+      }
+      const now = new Date()
+      const docs = items.map(item => ({
+        id: uuidv4(),
+        client_id,
+        week: item.week || '',
+        blog_type: item.blog_type || '',
+        blog_title: item.blog_title || '',
+        primary_keyword: item.primary_keyword || '',
+        secondary_keywords: item.secondary_keywords || '',
+        comments: item.comments || '',
+        writer: item.writer || '',
+        outline: item.outline || '',
+        outline_status: item.outline_status || 'Pending',
+        content: item.content || '',
+        ai_percentage: item.ai_percentage || '',
+        edited_on: item.edited_on || null,
+        topic_approval_status: item.topic_approval_status || 'Pending',
+        topic_approval_date: item.topic_approval_date || null,
+        blog_approval_status: item.blog_approval_status || 'Pending Review',
+        blog_approval_date: item.blog_approval_date || null,
+        qc_status: item.qc_status || '',
+        blog_status: item.blog_status || 'Draft',
+        blog_link: item.blog_link || '',
+        published_date: item.published_date || null,
+        created_at: now,
+        updated_at: now
+      }))
+      if (docs.length > 0) {
+        await database.collection('content_items').insertMany(docs)
+      }
+      return handleCORS(NextResponse.json({ imported: docs.length }))
+    }
+
+    // Portal: Update content approval (client can approve/reject topic or blog)
+    const portalContentApprovalMatch = route.match(/^\/portal\/([^/]+)\/content\/([^/]+)\/approval$/)
+    if (portalContentApprovalMatch && method === 'PUT') {
+      const slug = portalContentApprovalMatch[1]
+      const contentId = portalContentApprovalMatch[2]
+      const body = await request.json()
+      const { topic_approval_status, blog_approval_status } = body
+      
+      const VALID_TOPIC = ['Pending', 'Approved', 'Rejected']
+      const VALID_BLOG = ['Pending Review', 'Approved', 'Changes Required']
+      
+      const clientDoc = await database.collection('clients').findOne({ slug, is_active: true })
+      if (!clientDoc) return handleCORS(NextResponse.json({ error: 'Client not found' }, { status: 404 }))
+      
+      const item = await database.collection('content_items').findOne({ id: contentId, client_id: clientDoc.id })
+      if (!item) return handleCORS(NextResponse.json({ error: 'Content item not found' }, { status: 404 }))
+      
+      const updateData = { updated_at: new Date() }
+      if (topic_approval_status && VALID_TOPIC.includes(topic_approval_status)) {
+        updateData.topic_approval_status = topic_approval_status
+        if (topic_approval_status === 'Approved') {
+          updateData.topic_approval_date = new Date().toISOString().split('T')[0]
+        }
+      }
+      if (blog_approval_status && VALID_BLOG.includes(blog_approval_status)) {
+        updateData.blog_approval_status = blog_approval_status
+        if (blog_approval_status === 'Approved') {
+          updateData.blog_approval_date = new Date().toISOString().split('T')[0]
+        }
+      }
+      
+      await database.collection('content_items').updateOne({ id: contentId }, { $set: updateData })
+      return handleCORS(NextResponse.json({ success: true, ...updateData }))
+    }
+
     return handleCORS(NextResponse.json({ error: `Route ${route} not found` }, { status: 404 }))
 
   } catch (error) {
