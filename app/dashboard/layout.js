@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { getUser, logout } from '@/lib/auth'
 import {
   LayoutDashboard, Users, CheckSquare, BarChart3,
-  Upload, Menu, X, LogOut, ChevronRight, UserCircle, FolderOpen
+  Upload, Menu, X, LogOut, ChevronRight, UserCircle, FolderOpen, FileText
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
