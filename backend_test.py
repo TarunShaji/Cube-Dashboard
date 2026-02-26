@@ -996,6 +996,16 @@ class APITester:
             self.test_get_stats,
             self.test_portal_bandolier,
             self.test_portal_behno_password_protection,
+            # Content Calendar Tests
+            self.test_get_content_items_empty,
+            self.test_create_content_item,
+            self.test_get_content_items_with_data,
+            self.test_get_content_by_client_id,
+            self.test_get_single_content_item,
+            self.test_update_content_item,
+            self.test_bulk_import_content,
+            self.test_portal_content_approval,
+            self.test_delete_content_item,
         ]
         
         passed = 0
