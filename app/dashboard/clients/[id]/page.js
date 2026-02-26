@@ -352,6 +352,9 @@ export default function ClientDetailPage() {
       <Tabs defaultValue="timeline">
         <TabsList className="mb-4">
           <TabsTrigger value="timeline">Timeline Tracker</TabsTrigger>
+          <TabsTrigger value="content" className="gap-1">
+            <FileText className="w-3.5 h-3.5" /> Content Calendar {content.length > 0 && `(${content.length})`}
+          </TabsTrigger>
           <TabsTrigger value="reports" className="gap-1">
             <BarChart3 className="w-3.5 h-3.5" /> Reports {reports.length > 0 && `(${reports.length})`}
           </TabsTrigger>
