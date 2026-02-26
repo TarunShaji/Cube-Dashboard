@@ -234,6 +234,7 @@ export default function ClientPortalPage() {
   const [clientName, setClientName]           = useState('')
   const [collapsed, setCollapsed]             = useState({})
   const [tasks, setTasks]                     = useState([])
+  const [content, setContent]                 = useState([])
   const [portalPassword, setPortalPassword]   = useState(null)
 
   const fetchPortal = async (pwd = null) => {
@@ -247,6 +248,7 @@ export default function ClientPortalPage() {
     if (!res.ok) { setError(json.error || 'Failed to load portal'); setLoading(false); return }
     setData(json)
     setTasks(json.tasks || [])
+    setContent(json.content || [])
     setNeedsPassword(false)
     setLoading(false)
     if (pwd) setPortalPassword(pwd)
