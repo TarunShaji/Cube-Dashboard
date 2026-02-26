@@ -267,6 +267,10 @@ export default function ClientPortalPage() {
     setTasks(ts => ts.map(t => t.id === taskId ? { ...t, client_approval: newApproval } : t))
   }
 
+  const handleContentApprovalUpdate = (contentId, field, value) => {
+    setContent(cs => cs.map(c => c.id === contentId ? { ...c, [field]: value } : c))
+  }
+
   const toggleCategory = (cat) => setCollapsed(c => ({ ...c, [cat]: !c[cat] }))
 
   // ── Password gate ──────────────────────────────────────────────────────────
