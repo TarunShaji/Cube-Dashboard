@@ -43,6 +43,18 @@ const approvalColors = {
   'Required Changes':  'bg-red-100 text-red-700 border-red-200',
   'Pending Review':    'bg-gray-100 text-gray-500 border-gray-200',
 }
+const topicApprovalColors = {
+  'Approved':  'bg-green-100 text-green-700 border-green-200',
+  'Rejected':  'bg-red-100 text-red-700 border-red-200',
+  'Pending':   'bg-gray-100 text-gray-500 border-gray-200',
+}
+const blogStatusColors = {
+  'Published':         'bg-green-100 text-green-700 border-green-200',
+  'Sent for Approval': 'bg-amber-100 text-amber-700 border-amber-200',
+  'In Progress':       'bg-blue-100 text-blue-700 border-blue-200',
+  'Draft':             'bg-gray-100 text-gray-600 border-gray-200',
+  'Rejected':          'bg-red-100 text-red-700 border-red-200',
+}
 
 // ── Inline editable cell ──────────────────────────────────────────────────────
 function EditableCell({ value, type = 'text', options = [], onSave, placeholder = '—' }) {
