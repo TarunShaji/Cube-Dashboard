@@ -472,6 +472,91 @@ export default function ClientPortalPage() {
             )}
           </TabsContent>
 
+          {/* ── Content Calendar Tab ──────────────────────────────────────── */}
+          <TabsContent value="content">
+            {content.length === 0 ? (
+              <div className="text-center py-16">
+                <FileText className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                <p className="text-gray-400">No content calendar items yet.</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-200 overflow-auto">
+                <table className="w-full text-sm" style={{ minWidth: '900px' }}>
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500" style={{ minWidth: 60 }}>Week</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500" style={{ minWidth: 200 }}>Blog Title</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Keyword</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Blog Status</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Blog Link</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Topic Approval</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500">Blog Approval</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {content.map(item => (
+                      <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-600">{item.week || '—'}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-800 text-sm">{item.blog_title}</p>
+                          {item.blog_type && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{item.blog_type}</p>}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{item.primary_keyword || '—'}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${blogStatusColors[item.blog_status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                            {item.blog_status || 'Draft'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {item.blog_link ? (
+                            <a href={item.blog_link} target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-medium transition-colors">
+                              <Link2 className="w-3 h-3" /> View
+                            </a>
+                          ) : <span className="text-gray-300 text-xs">—</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <TopicApprovalButton
+                            contentId={item.id}
+                            current={item.topic_approval_status}
+                            slug={slug}
+                            onUpdate={handleContentApprovalUpdate}
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <BlogApprovalButton
+                            contentId={item.id}
+                            current={item.blog_approval_status}
+                            slug={slug}
+                            onUpdate={handleContentApprovalUpdate}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            
+            {/* Legend for content approvals */}
+            {content.length > 0 && (
+              <div className="flex items-center gap-6 mt-4 px-1">
+                <p className="text-xs text-gray-500">Your approval options:</p>
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-1 text-xs text-gray-500">
+                    <span className="w-2 h-2 rounded-full bg-green-500" />Approved
+                  </span>
+                  <span className="flex items-center gap-1 text-xs text-gray-500">
+                    <span className="w-2 h-2 rounded-full bg-red-500" />Rejected / Changes Required
+                  </span>
+                  <span className="flex items-center gap-1 text-xs text-gray-500">
+                    <span className="w-2 h-2 rounded-full bg-gray-300" />Pending
+                  </span>
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
           {/* ── Reports Tab ─────────────────────────────────────────────── */}
           <TabsContent value="reports">
             {reports.length === 0 ? (
