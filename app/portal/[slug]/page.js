@@ -107,6 +107,122 @@ function ApprovalButton({ taskId, current, slug, onUpdate }) {
   )
 }
 
+// Topic approval button for content calendar
+function TopicApprovalButton({ contentId, current, slug, onUpdate }) {
+  const [loading, setLoading] = useState(false)
+  const [open, setOpen] = useState(false)
+  const val = current || 'Pending'
+
+  const set = async (choice) => {
+    setOpen(false)
+    if (choice === val) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/portal/${slug}/content/${contentId}/approval`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic_approval_status: choice }),
+      })
+      if (res.ok) onUpdate(contentId, 'topic_approval_status', choice)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        disabled={loading}
+        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap ${topicApprovalColors[val]}`}
+      >
+        {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+        {val}
+        <ChevronDown className="w-3 h-3 opacity-60" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden min-w-[140px]">
+            {TOPIC_APPROVAL_OPTIONS.map(opt => (
+              <button
+                key={opt}
+                onClick={() => set(opt)}
+                className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-gray-50 flex items-center gap-2 transition-colors ${val === opt ? 'bg-gray-50' : ''}`}
+              >
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                  opt === 'Approved' ? 'bg-green-500' :
+                  opt === 'Rejected' ? 'bg-red-500' : 'bg-gray-300'
+                }`} />
+                {opt}
+                {val === opt && <span className="ml-auto text-gray-400">✓</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// Blog approval button for content calendar
+function BlogApprovalButton({ contentId, current, slug, onUpdate }) {
+  const [loading, setLoading] = useState(false)
+  const [open, setOpen] = useState(false)
+  const val = current || 'Pending Review'
+
+  const set = async (choice) => {
+    setOpen(false)
+    if (choice === val) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/portal/${slug}/content/${contentId}/approval`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blog_approval_status: choice }),
+      })
+      if (res.ok) onUpdate(contentId, 'blog_approval_status', choice)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        disabled={loading}
+        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap ${approvalColors[val]}`}
+      >
+        {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+        {val}
+        <ChevronDown className="w-3 h-3 opacity-60" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden min-w-[160px]">
+            {BLOG_APPROVAL_OPTIONS.map(opt => (
+              <button
+                key={opt}
+                onClick={() => set(opt)}
+                className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-gray-50 flex items-center gap-2 transition-colors ${val === opt ? 'bg-gray-50' : ''}`}
+              >
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                  opt === 'Approved' ? 'bg-green-500' :
+                  opt === 'Changes Required' ? 'bg-red-500' : 'bg-gray-300'
+                }`} />
+                {opt}
+                {val === opt && <span className="ml-auto text-gray-400">✓</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function ClientPortalPage() {
   const { slug } = useParams()
   const [data, setData]                       = useState(null)
