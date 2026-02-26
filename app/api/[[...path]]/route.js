@@ -422,13 +422,16 @@ async function handleRoute(request, { params }) {
 
       const tasks = await database.collection('tasks').find({ client_id: clientData.id }).sort({ category: 1, created_at: 1 }).toArray()
       const reports = await database.collection('reports').find({ client_id: clientData.id }).sort({ report_date: -1 }).toArray()
+      const contentItems = await database.collection('content_items').find({ client_id: clientData.id }).sort({ created_at: -1 }).toArray()
       const cleanTasks = tasks.map(({ _id, ...t }) => t)
       const cleanReports = reports.map(({ _id, ...r }) => r)
+      const cleanContent = contentItems.map(({ _id, ...c }) => c)
 
       return handleCORS(NextResponse.json({
         client: clientData,
         tasks: cleanTasks,
-        reports: cleanReports
+        reports: cleanReports,
+        content: cleanContent
       }))
     }
 
