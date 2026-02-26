@@ -387,6 +387,9 @@ export default function ClientPortalPage() {
             <TabsTrigger value="progress" className="gap-1.5">
               <CheckCircle2 className="w-4 h-4" /> Project Progress
             </TabsTrigger>
+            <TabsTrigger value="content" className="gap-1.5">
+              <FileText className="w-4 h-4" /> Content Calendar {content.length > 0 && `(${content.length})`}
+            </TabsTrigger>
             <TabsTrigger value="reports" className="gap-1.5">
               <BarChart3 className="w-4 h-4" /> Reports {reports.length > 0 && `(${reports.length})`}
             </TabsTrigger>
