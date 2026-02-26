@@ -369,9 +369,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "All Tasks page with filters and inline editing"
-    - "Client Portal"
-    - "Client detail with Timeline Tracker"
+    - "Content Calendar CRUD API"
+    - "Content Bulk Import API" 
+    - "Content Portal Approval API"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -381,3 +381,5 @@ agent_communication:
     message: "Built complete Agency Dashboard MVP. Fixed SelectItem empty string error in tasks page and client detail page. All pages verified via screenshots. Core features working: login, dashboard, clients list, client detail with timeline tracker (inline editing), all tasks spreadsheet view with filters, team view, reports, CSV import, and client portal."
   - agent: "testing"
     message: "Completed comprehensive backend API testing. Created backend_test.py with 15 test cases covering all endpoints. All tests PASSED: seed data, auth login (JWT), clients CRUD with task counts, tasks CRUD with filters/bulk updates, team members API (password_hash properly excluded), reports with client enrichment, dashboard stats, client portals (Bandolier public, Behno password-protected). Backend API is fully functional and secure."
+  - agent: "testing"
+    message: "Completed Content Calendar API testing with 9 additional test cases. All endpoints PASSED: GET/POST/PUT/DELETE /api/content, GET /api/content with client_id filter, POST /api/content/bulk for imports, PUT /api/portal/:slug/content/:id/approval for client approvals. Content items support rich schema with blog titles, keywords, writers, outlines, approval statuses, and dates. Total: 24/24 backend tests passed."
