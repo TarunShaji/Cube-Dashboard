@@ -55,7 +55,7 @@ export default function AllTasksPage() {
   const [columnOrder, setColumnOrder] = useState([])
 
   useEffect(() => {
-    const saved = localStorage.getItem('tasks_column_order')
+    const saved = localStorage.getItem('tasks_column_order_v2')
     const parsed = safeJSON(saved)
     if (parsed) setColumnOrder(parsed)
     else setColumnOrder(['selection', 'client', 'title', 'category', 'status', 'priority', 'eta', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'])
@@ -63,7 +63,7 @@ export default function AllTasksPage() {
 
   const saveColumnOrder = (newOrder) => {
     setColumnOrder(newOrder)
-    localStorage.setItem('tasks_column_order', JSON.stringify(newOrder))
+    localStorage.setItem('tasks_column_order_v2', JSON.stringify(newOrder))
   }
 
   const loadData = async () => {

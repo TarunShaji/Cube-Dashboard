@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { EditableCell } from '@/components/EditableCell'
 import { LinkCell } from '@/components/LinkCell'
-import { FileText, Plus, ExternalLink, Trash2, Link2, Filter, Search, GripVertical, GripHorizontal } from 'lucide-react'
+import { FileText, Plus, Trash2, Filter, Search, GripVertical, GripHorizontal } from 'lucide-react'
 import { safeJSON, safeArray } from '@/lib/safe'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import {
@@ -32,11 +32,17 @@ import { CSS } from '@dnd-kit/utilities'
 import { restrictToHorizontalAxis, restrictToVerticalAxis } from '@dnd-kit/modifiers'
 
 import {
-  OUTLINE_STATUSES, TOPIC_APPROVALS, BLOG_APPROVALS, BLOG_STATUSES,
+  OUTLINE_STATUSES, TOPIC_APPROVALS, BLOG_APPROVALS, BLOG_STATUSES, CONTENT_INTERNAL_APPROVALS,
   topicApprovalColors, blogStatusColors, approvalColors, CONTENT_COLUMN_WIDTHS
 } from '@/lib/constants'
 
-// Shared components imported from @/components/
+const COL_ORDER_KEY = 'content_column_order_v2'
+const DEFAULT_COL_ORDER = [
+  'client', 'week', 'title', 'keyword', 'writer',
+  'topic_approval', 'blog_status',
+  'blog_internal_approval', 'send_link', 'blog_approval', 'blog_feedback',
+  'link', 'published', 'actions'
+]
 
 export default function ContentCalendarPage() {
   const { data: contentData, mutate: mutateContent, error: contentErr } = useSWR('/api/content', swrFetcher)
@@ -52,10 +58,10 @@ export default function ContentCalendarPage() {
   const [confirmConfig, setConfirmConfig] = useState(null)
 
   useEffect(() => {
-    const saved = localStorage.getItem('content_column_order')
+    const saved = localStorage.getItem(COL_ORDER_KEY)
     const parsed = safeJSON(saved)
     if (parsed) setColumnOrder(parsed)
-    else setColumnOrder(['client', 'week', 'title', 'keyword', 'writer', 'topic_approval', 'blog_status', 'blog_approval', 'link', 'published', 'actions'])
+    else setColumnOrder(DEFAULT_COL_ORDER)
   }, [])
 
   const updateContent = async (contentId, field, value) => {
@@ -78,6 +84,30 @@ export default function ContentCalendarPage() {
       mutateContent(content.map(c => c.id === contentId ? updated : c), false)
     } else {
       mutateContent()
+    }
+    setSaving(s => ({ ...s, [contentId]: false }))
+  }
+
+  const publishContent = async (contentId) => {
+    const item = content.find(c => c?.id === contentId)
+    setSaving(s => ({ ...s, [contentId]: true }))
+    try {
+      const res = await apiFetch(`/api/content/${contentId}/publish`, {
+        method: 'POST',
+        body: JSON.stringify({ updated_at: item?.updated_at })
+      })
+      if (!res.ok) {
+        const error = await res.json()
+        alert(error.error || 'Publish failed')
+        mutateContent()
+      } else {
+        const data = await res.json()
+        if (data.content) {
+          mutateContent(content.map(c => c.id === contentId ? data.content : c), false)
+        }
+      }
+    } catch (e) {
+      console.error('Publish failed', e)
     }
     setSaving(s => ({ ...s, [contentId]: false }))
   }
@@ -126,7 +156,6 @@ export default function ContentCalendarPage() {
       const newIndex = content.findIndex((c) => c.id === over.id)
       const reordered = arrayMove(content, oldIndex, newIndex)
       mutateContent(reordered, false)
-      // Persistence: In a real app, you'd send a PUT to update 'sort_order'
     }
   }
 
@@ -137,7 +166,7 @@ export default function ContentCalendarPage() {
         const oldIndex = items.indexOf(active.id)
         const newIndex = items.indexOf(over.id)
         const updated = arrayMove(items, oldIndex, newIndex)
-        localStorage.setItem('content_column_order', JSON.stringify(updated))
+        localStorage.setItem(COL_ORDER_KEY, JSON.stringify(updated))
         return updated
       })
     }
@@ -174,7 +203,7 @@ export default function ContentCalendarPage() {
     return (
       <tr ref={setNodeRef} style={style} className={`hover:bg-gray-50 group border-b border-gray-100 ${isDragging ? 'opacity-50 shadow-lg' : ''}`}>
         {safeArray(columnOrder).map(colId => (
-          <td key={colId} className="px-3 py-1.5 overflow-hidden" style={{ width: CONTENT_COLUMN_WIDTHS[colId], minWidth: CONTENT_COLUMN_WIDTHS[colId] }}>
+          <td key={colId} className={`px-3 py-1.5 overflow-hidden ${colId === 'blog_internal_approval' || colId === 'send_link' ? 'bg-gray-50/50' : ''}`} style={{ width: CONTENT_COLUMN_WIDTHS[colId], minWidth: CONTENT_COLUMN_WIDTHS[colId] }}>
             {colId === 'client' && (
               <div className="flex items-center gap-2">
                 <div {...attributes} {...listeners} className="cursor-grab text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -191,7 +220,42 @@ export default function ContentCalendarPage() {
             {colId === 'writer' && <EditableCell value={item.writer} onSave={v => updateContent(item.id, 'writer', v)} placeholder="Writer" />}
             {colId === 'topic_approval' && <EditableCell value={item.topic_approval_status || 'Pending'} type="topic_approval" options={TOPIC_APPROVALS} onSave={v => updateContent(item.id, 'topic_approval_status', v)} />}
             {colId === 'blog_status' && <EditableCell value={item.blog_status || 'Draft'} type="blog_status" options={BLOG_STATUSES} onSave={v => updateContent(item.id, 'blog_status', v)} />}
-            {colId === 'blog_approval' && <EditableCell value={item.blog_approval_status || 'Pending Review'} type="blog_approval" options={BLOG_APPROVALS} onSave={v => updateContent(item.id, 'blog_approval_status', v)} />}
+            {colId === 'blog_internal_approval' && (
+              <EditableCell
+                value={item.blog_internal_approval || 'Pending'}
+                type="internal_approval"
+                options={CONTENT_INTERNAL_APPROVALS}
+                disabled={item.blog_status !== 'Sent for Approval' && item.blog_status !== 'Published' && item.blog_status !== 'In Progress'}
+                onSave={v => updateContent(item.id, 'blog_internal_approval', v)}
+              />
+            )}
+            {colId === 'send_link' && (
+              <Button
+                size="sm"
+                variant={item.client_link_visible_blog ? 'ghost' : 'default'}
+                className={`h-7 px-2 text-[10px] uppercase tracking-wider font-bold ${item.client_link_visible_blog ? 'text-green-600' : ''}`}
+                disabled={
+                  item.blog_internal_approval !== 'Approved' ||
+                  !item.blog_link ||
+                  item.client_link_visible_blog === true
+                }
+                onClick={() => publishContent(item.id)}
+              >
+                {item.client_link_visible_blog ? 'Sent' : 'Send Link'}
+              </Button>
+            )}
+            {colId === 'blog_approval' && (
+              <EditableCell value={item.blog_approval_status || 'Pending Review'} type="blog_approval" options={BLOG_APPROVALS} disabled={true} />
+            )}
+            {colId === 'blog_feedback' && (
+              <div className="max-w-[160px]">
+                {item.blog_approval_status === 'Changes Required' ? (
+                  <div className="text-[10px] text-red-600 bg-red-50 p-1 rounded border border-red-100 line-clamp-2" title={item.blog_client_feedback_note}>
+                    {item.blog_client_feedback_note || 'Changes requested'}
+                  </div>
+                ) : <span className="text-gray-300 text-xs">—</span>}
+              </div>
+            )}
             {colId === 'link' && <LinkCell value={item.blog_link} onSave={v => updateContent(item.id, 'blog_link', v)} />}
             {colId === 'published' && <EditableCell value={item.published_date} type="date" onSave={v => updateContent(item.id, 'published_date', v)} />}
             {colId === 'actions' && (
@@ -207,7 +271,9 @@ export default function ContentCalendarPage() {
 
   const columnLabels = {
     client: 'Client', week: 'Week', title: 'Blog Title', keyword: 'Keyword', writer: 'Writer',
-    topic_approval: 'Topic Approval', blog_status: 'Blog Status', blog_approval: 'Blog Approval',
+    topic_approval: 'Topic Approval', blog_status: 'Blog Status',
+    blog_internal_approval: 'Internal Approval', send_link: 'Send Link',
+    blog_approval: 'Client Approval', blog_feedback: 'Feedback',
     link: 'Blog Link', published: 'Published', actions: ''
   }
 
@@ -244,7 +310,6 @@ export default function ContentCalendarPage() {
         </div>
       </div>
 
-      {/* Filters omitted for brevity, same as before */}
       {showFilters && (
         <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4 flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
@@ -276,12 +341,12 @@ export default function ContentCalendarPage() {
       {/* Main Table with DnD */}
       <div className="bg-white border border-gray-200 rounded-lg overflow-auto shadow-sm">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleColDragEnd} modifiers={[restrictToHorizontalAxis]}>
-          <table className="w-full text-sm" style={{ minWidth: '1500px', tableLayout: 'fixed' }}>
+          <table className="w-full text-sm" style={{ minWidth: '1700px', tableLayout: 'fixed' }}>
             <thead>
               <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
                 <tr className="border-b border-gray-100 bg-gray-50/80 sticky top-0 z-10 text-xs">
                   {columnOrder.map(colId => (
-                    <SortableHeader key={colId} id={colId} label={columnLabels[colId]} />
+                    <SortableHeader key={colId} id={colId} label={columnLabels[colId] || colId} />
                   ))}
                 </tr>
               </SortableContext>

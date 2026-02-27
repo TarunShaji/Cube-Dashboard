@@ -4,6 +4,12 @@ import { useEffect, useState, useRef } from 'react'
 import { Link2 } from 'lucide-react'
 import { normalizeUrl } from '@/lib/utils'
 
+/**
+ * Inline link editor cell.
+ * - Clicking the "Open" button opens the link in a new tab.
+ * - Clicking the pencil icon enters editing mode.
+ * - On save, prepends https:// if no scheme is provided.
+ */
 export function LinkCell({ value, onSave }) {
     const [editing, setEditing] = useState(false)
     const [val, setVal] = useState(value || '')
@@ -12,19 +18,28 @@ export function LinkCell({ value, onSave }) {
     useEffect(() => setVal(value || ''), [value])
     useEffect(() => { if (editing && inputRef.current) inputRef.current.focus() }, [editing])
 
-    const save = () => { setEditing(false); if (val !== (value || '')) onSave(val) }
+    const save = () => {
+        setEditing(false)
+        let normalized = val.trim()
+        // Auto-prepend https:// if the user typed a bare domain (no scheme)
+        if (normalized && !normalized.match(/^https?:\/\//i) && !normalized.startsWith('//')) {
+            normalized = 'https://' + normalized
+        }
+        if (normalized !== (value || '')) onSave(normalized)
+        setVal(normalized)
+    }
 
     if (editing) {
         return (
             <input
                 ref={inputRef}
-                type="url"
+                type="text"
                 value={val}
                 onChange={e => setVal(e.target.value)}
                 onBlur={save}
                 onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { setVal(value || ''); setEditing(false) } }}
-                className="w-full px-2 py-1 text-xs border border-blue-400 rounded bg-white focus:outline-none min-w-[140px]"
-                placeholder="https://..."
+                className="w-full px-2 py-1 text-xs border border-blue-400 rounded bg-white focus:outline-none min-w-[160px]"
+                placeholder="https://example.com"
             />
         )
     }
@@ -37,9 +52,13 @@ export function LinkCell({ value, onSave }) {
                     className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-medium transition-colors"
                     title={val}
                 >
-                    <Link2 className="w-3 h-3" /> Open
+                    <Link2 className="w-3 h-3 flex-shrink-0" /> Open
                 </a>
-                <button onClick={() => setEditing(true)} className="text-gray-300 hover:text-gray-500 p-0.5 rounded">
+                <button
+                    onClick={e => { e.stopPropagation(); setEditing(true) }}
+                    className="text-gray-300 hover:text-gray-500 p-0.5 rounded"
+                    title="Edit link"
+                >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                 </button>
             </div>

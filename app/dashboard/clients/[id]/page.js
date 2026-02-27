@@ -36,7 +36,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { restrictToHorizontalAxis, restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import {
-  STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, REPORT_TYPES, SERVICE_TYPES,
+  STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, CONTENT_INTERNAL_APPROVALS, REPORT_TYPES, SERVICE_TYPES,
   OUTLINE_STATUSES, TOPIC_APPROVALS, BLOG_APPROVALS, BLOG_STATUSES,
   statusColors, priorityColors, approvalColors, topicApprovalColors, blogStatusColors, internalApprovalColors,
   TASK_COLUMN_WIDTHS, CONTENT_COLUMN_WIDTHS
@@ -70,7 +70,7 @@ export default function ClientDetailPage() {
   const [confirmConfig, setConfirmConfig] = useState(null)
 
   useEffect(() => {
-    const savedTasks = localStorage.getItem('client_tasks_col_order')
+    const savedTasks = localStorage.getItem('client_tasks_col_order_v2')
     const parsedTasks = safeJSON(savedTasks)
     if (parsedTasks && Array.isArray(parsedTasks)) {
       setTaskColOrder(parsedTasks.filter(c => c !== 'selection' && c !== 'client'))
@@ -78,12 +78,12 @@ export default function ClientDetailPage() {
       setTaskColOrder(['title', 'category', 'status', 'priority', 'eta', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'])
     }
 
-    const savedContent = localStorage.getItem('client_content_col_order')
+    const savedContent = localStorage.getItem('client_content_col_order_v2')
     const parsedContent = safeJSON(savedContent)
     if (parsedContent && Array.isArray(parsedContent)) {
       setContentColOrder(parsedContent.filter(c => c !== 'client_grip' && c !== 'client'))
     } else {
-      setContentColOrder(['week', 'title', 'keyword', 'writer', 'outline', 'topic_approval', 'blog_status', 'blog_approval', 'link', 'published', 'comments', 'actions'])
+      setContentColOrder(['week', 'title', 'keyword', 'writer', 'outline', 'topic_approval', 'blog_status', 'blog_internal_approval', 'send_link', 'blog_approval', 'blog_feedback', 'link', 'published', 'comments', 'actions'])
     }
   }, [])
   const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || ''
@@ -148,6 +148,30 @@ export default function ClientDetailPage() {
       console.error('Publish failed', e)
     }
     setSaving(s => ({ ...s, [taskId]: false }))
+  }
+
+  const publishContent = async (contentId) => {
+    const item = safeArray(content).find(c => c?.id === contentId)
+    setSaving(s => ({ ...s, [`c_${contentId}`]: true }))
+    try {
+      const res = await apiFetch(`/api/content/${contentId}/publish`, {
+        method: 'POST',
+        body: JSON.stringify({ updated_at: item?.updated_at })
+      })
+      if (!res.ok) {
+        const error = await res.json()
+        alert(error.error || 'Publish failed')
+        mutateContent()
+      } else {
+        const data = await res.json()
+        if (data.content) {
+          mutateContent(safeArray(content).map(c => c.id === contentId ? data.content : c), false)
+        }
+      }
+    } catch (e) {
+      console.error('Content publish failed', e)
+    }
+    setSaving(s => ({ ...s, [`c_${contentId}`]: false }))
   }
 
   const addTask = async () => {
@@ -304,7 +328,7 @@ export default function ClientDetailPage() {
         const oldIndex = items.indexOf(active.id)
         const newIndex = items.indexOf(over.id)
         const updated = arrayMove(items, oldIndex, newIndex)
-        localStorage.setItem('client_tasks_col_order', JSON.stringify(updated))
+        localStorage.setItem('client_tasks_col_order_v2', JSON.stringify(updated))
         return updated
       })
     }
@@ -326,7 +350,7 @@ export default function ClientDetailPage() {
         const oldIndex = items.indexOf(active.id)
         const newIndex = items.indexOf(over.id)
         const updated = arrayMove(items, oldIndex, newIndex)
-        localStorage.setItem('client_content_col_order', JSON.stringify(updated))
+        localStorage.setItem('client_content_col_order_v2', JSON.stringify(updated))
         return updated
       })
     }
@@ -479,16 +503,41 @@ export default function ClientDetailPage() {
                 {item.blog_status || 'Draft'}
               </span>
             )}
+            {colId === 'blog_internal_approval' && (
+              <EditableCell
+                value={item.blog_internal_approval || 'Pending'}
+                type="internal_approval"
+                options={CONTENT_INTERNAL_APPROVALS}
+                disabled={!item.blog_link}
+                onSave={v => updateContent(item.id, 'blog_internal_approval', v)}
+              />
+            )}
+            {colId === 'send_link' && (
+              <Button
+                size="sm"
+                variant={item.client_link_visible_blog ? 'ghost' : 'default'}
+                className={`h-7 px-2 text-[10px] uppercase tracking-wider font-bold ${item.client_link_visible_blog ? 'text-green-600' : ''}`}
+                disabled={
+                  item.blog_internal_approval !== 'Approved' ||
+                  !item.blog_link ||
+                  item.client_link_visible_blog === true
+                }
+                onClick={() => publishContent(item.id)}
+              >
+                {item.client_link_visible_blog ? 'Sent' : 'Send Link'}
+              </Button>
+            )}
             {colId === 'blog_approval' && (
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border cursor-pointer hover:ring-1 hover:ring-blue-200 ${approvalColors[item.blog_approval_status] || 'bg-gray-100 text-gray-500 border-gray-200'}`}
-                onClick={() => {
-                  const opts = BLOG_APPROVALS
-                  const idx = opts.indexOf(item.blog_approval_status || 'Pending Review')
-                  const next = opts[(idx + 1) % opts.length]
-                  updateContent(item.id, 'blog_approval_status', next)
-                }}>
-                {item.blog_approval_status || 'Pending Review'}
-              </span>
+              <EditableCell value={item.blog_approval_status || 'Pending Review'} type="blog_approval" disabled={true} />
+            )}
+            {colId === 'blog_feedback' && (
+              <div className="max-w-[150px]">
+                {item.blog_approval_status === 'Changes Required' ? (
+                  <div className="text-[10px] text-red-600 bg-red-50 p-1 rounded border border-red-100 line-clamp-2" title={item.blog_client_feedback_note}>
+                    {item.blog_client_feedback_note || 'Changes requested'}
+                  </div>
+                ) : <span className="text-gray-300 text-xs">—</span>}
+              </div>
             )}
             {colId === 'link' && <LinkCell value={item.blog_link} onSave={v => updateContent(item.id, 'blog_link', v)} />}
             {colId === 'published' && <EditableCell value={item.published_date} type="date" onSave={v => updateContent(item.id, 'published_date', v)} />}
@@ -513,7 +562,9 @@ export default function ClientDetailPage() {
   const contentColLabels = {
     week: 'Week', title: 'Blog Title', keyword: 'Keyword', writer: 'Writer',
     outline: 'Outline Status', topic_approval: 'Topic Approval', blog_status: 'Blog Status',
-    blog_approval: 'Blog Approval', link: 'Blog Link', published: 'Published', comments: 'Notes', actions: ''
+    blog_internal_approval: 'Internal Approval', send_link: 'Send Link',
+    blog_approval: 'Client Approval', blog_feedback: 'Feedback',
+    link: 'Blog Link', published: 'Published', comments: 'Notes', actions: ''
   }
 
   return (
