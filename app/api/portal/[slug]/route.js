@@ -25,9 +25,9 @@ export async function GET(request, { params }) {
             }
         }
 
-        const tasks = await database.collection('tasks').find({ client_id: clientData.id, client_link_visible: true }).sort({ category: 1, created_at: 1 }).toArray()
+        const tasks = await database.collection('tasks').find({ client_id: clientData.id }).sort({ category: 1, created_at: 1 }).toArray()
         const reports = await database.collection('reports').find({ client_id: clientData.id }).sort({ report_date: -1 }).toArray()
-        const contentItems = await database.collection('content_items').find({ client_id: clientData.id, blog_approval_status: 'Approved' }).sort({ created_at: -1 }).toArray()
+        const contentItems = await database.collection('content_items').find({ client_id: clientData.id }).sort({ week: 1, created_at: 1 }).toArray()
 
         const cleanTasks = safeArray(tasks).map(({ _id, ...t }) => t)
         const cleanReports = safeArray(reports).map(({ _id, ...r }) => r)
