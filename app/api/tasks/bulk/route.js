@@ -5,6 +5,10 @@ import { connectToMongo } from '@/lib/mongodb'
 import { handleCORS, withAuth, withErrorLogging } from '@/lib/api-utils'
 import { applyTaskTransition, assertTaskInvariant } from '@/lib/lifecycleEngine'
 
+import { TaskCreateSchema } from '@/lib/schemas/task.schema'
+import { validateBody } from '@/lib/validation'
+import { z } from 'zod'
+
 export async function POST(request) {
     return withAuth(request, async () => {
         return withErrorLogging(request, async () => {
@@ -12,8 +16,13 @@ export async function POST(request) {
             const body = await request.json()
             const { tasks, client_id } = body
 
-            if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
-                return handleCORS(NextResponse.json({ error: 'Array of tasks required' }, { status: 400 }))
+            const validation = validateBody(z.object({
+                tasks: z.array(TaskCreateSchema.partial().extend({ title: z.string().min(1) })),
+                client_id: z.string().uuid()
+            }), body)
+
+            if (!validation.success) {
+                return handleCORS(NextResponse.json(validation.error, { status: 400 }))
             }
 
             const preparedDocs = []

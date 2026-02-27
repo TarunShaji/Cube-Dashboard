@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Card, CardContent } from '@/components/ui/card'
 import { Plus, ExternalLink, Trash2 } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 
 const REPORT_TYPES = ['Monthly SEO Report', 'Weekly Update', 'Audit Report', 'Ad Performance', 'Custom']
 
@@ -27,9 +28,10 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ title: '', client_id: '', report_type: 'Monthly SEO Report', report_url: '', report_date: '', notes: '' })
+  const [confirmConfig, setConfirmConfig] = useState(null)
 
   const loadData = async () => {
-    const params = filterClient ? `?client_id=${filterClient}` : ''
+    const params = filterClient && filterClient !== 'all' ? `?client_id=${filterClient}` : ''
     const [rRes, cRes] = await Promise.all([apiFetch(`/api/reports${params}`), apiFetch('/api/clients')])
     const [r, c] = await Promise.all([rRes.json(), cRes.json()])
     setReports(r || [])
@@ -48,10 +50,15 @@ export default function ReportsPage() {
     setForm({ title: '', client_id: '', report_type: 'Monthly SEO Report', report_url: '', report_date: '', notes: '' })
   }
 
-  const deleteReport = async (id) => {
-    if (!confirm('Delete this report?')) return
-    await apiFetch(`/api/reports/${id}`, { method: 'DELETE' })
-    setReports(rs => rs.filter(r => r.id !== id))
+  const deleteReport = (id) => {
+    setConfirmConfig({
+      title: 'Delete Report',
+      description: 'This will permanently delete the report. This cannot be undone.',
+      onConfirm: async () => {
+        await apiFetch(`/api/reports/${id}`, { method: 'DELETE' })
+        setReports(rs => rs.filter(r => r.id !== id))
+      }
+    })
   }
 
   return (
@@ -70,7 +77,7 @@ export default function ReportsPage() {
         <Select value={filterClient} onValueChange={setFilterClient}>
           <SelectTrigger className="w-48 h-8 text-sm"><SelectValue placeholder="All Clients" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Clients</SelectItem>
+            <SelectItem value="all">All Clients</SelectItem>
             {safeArray(clients).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>

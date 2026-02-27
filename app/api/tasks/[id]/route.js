@@ -6,23 +6,19 @@ import { validateBody, rejectFields } from '@/lib/validation'
 import { TaskUpdateSchema } from '@/lib/schemas/task.schema'
 
 export async function GET(request, { params }) {
-    try {
+    return withAuth(request, async () => {
         const { id: taskId } = params
         const database = await connectToMongo()
         const task = await database.collection('tasks').findOne({ id: taskId })
         if (!task) return handleCORS(NextResponse.json({ error: 'Task not found' }, { status: 404 }))
         const { _id, ...result } = task
         return handleCORS(NextResponse.json(result))
-    } catch (error) {
-        return handleCORS(NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 }))
-    }
+    })
 }
 
 const FORBIDDEN_FIELDS = [
-    'internal_approval',
     'client_link_visible',
     'client_approval',
-    'client_feedback_note',
     'client_feedback_at'
 ];
 
@@ -99,8 +95,10 @@ export async function DELETE(request, { params }) {
         try {
             const { id: taskId } = params
             const database = await connectToMongo()
-
-            await database.collection('tasks').deleteOne({ id: taskId })
+            const result = await database.collection('tasks').deleteOne({ id: taskId })
+            if (result.deletedCount === 0) {
+                return handleCORS(NextResponse.json({ error: 'Task not found or already deleted' }, { status: 404 }))
+            }
             return handleCORS(NextResponse.json({ message: 'Task deleted' }))
         } catch (error) {
             return handleCORS(NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 }))

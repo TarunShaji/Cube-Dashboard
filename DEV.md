@@ -25,7 +25,7 @@ The system uses a document-oriented database with the following primary collecti
    - `portal_password`: Hashed or null if public.
 2. **`tasks`**: Core work items.
    - `client_id` (Indexed): Relates to a client.
-   - `status`: One of `To Be Started`, `In Progress`, `To Be Approved`, `Completed`, `Blocked`, `Recurring`.
+   - `status`: One of `To Be Started`, `In Progress`, `Pending Review`, `Completed`, `Blocked`, `Recurring`.
    - `assigned_to`: UUID of a team member.
 3. **`content_items`**: Blog and social media management.
    - `client_id` (Indexed): Relates to a client.

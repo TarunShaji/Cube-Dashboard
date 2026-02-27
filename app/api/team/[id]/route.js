@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import bcrypt from 'bcryptjs'
 import { connectToMongo } from '@/lib/mongodb'
 import { handleCORS, withAuth } from '@/lib/api-utils'
+import { validateBody } from '@/lib/validation'
+import { TeamMemberSchema } from '@/lib/schemas/team.schema'
 
 export async function PUT(request, { params }) {
     return withAuth(request, async () => {
@@ -10,15 +11,27 @@ export async function PUT(request, { params }) {
             const database = await connectToMongo()
             const body = await request.json()
 
-            const { _id, id, password_hash, password, ...updateData } = body
-            if (password) updateData.password_hash = await bcrypt.hash(password, 10)
+            const validation = validateBody(TeamMemberSchema, body)
+            if (!validation.success) {
+                return handleCORS(NextResponse.json(validation.error, { status: 400 }))
+            }
+
+            const updateData = validation.data
             updateData.updated_at = new Date()
 
-            await database.collection('team_members').updateOne({ id: memberId }, { $set: updateData })
-            const updated = await database.collection('team_members').findOne({ id: memberId })
-            const { _id: _, password_hash: __, ...result } = updated
+            const result = await database.collection('team_members').updateOne(
+                { id: memberId },
+                { $set: updateData }
+            )
 
-            return handleCORS(NextResponse.json(result))
+            if (result.matchedCount === 0) {
+                return handleCORS(NextResponse.json({ error: 'Team member not found' }, { status: 404 }))
+            }
+
+            const updated = await database.collection('team_members').findOne({ id: memberId })
+            const { _id, password_hash, ...responseBody } = updated
+
+            return handleCORS(NextResponse.json(responseBody))
         } catch (error) {
             return handleCORS(NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 }))
         }
@@ -31,7 +44,15 @@ export async function DELETE(request, { params }) {
             const { id: memberId } = params
             const database = await connectToMongo()
 
-            await database.collection('team_members').updateOne({ id: memberId }, { $set: { is_active: false } })
+            const result = await database.collection('team_members').updateOne(
+                { id: memberId },
+                { $set: { is_active: false, updated_at: new Date() } }
+            )
+
+            if (result.matchedCount === 0) {
+                return handleCORS(NextResponse.json({ error: 'Team member not found' }, { status: 404 }))
+            }
+
             return handleCORS(NextResponse.json({ message: 'Team member deactivated' }))
         } catch (error) {
             return handleCORS(NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 }))

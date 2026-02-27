@@ -111,6 +111,10 @@ export default function ClientDetailPage() {
       if (res.status === 409) {
         const error = await res.json()
         alert(error.error || 'Concurrency error: Task was modified by another user.')
+        mutateTasks()
+      } else if (res.ok) {
+        const updatedTask = await res.json()
+        mutateTasks(currentTasks.map(t => t.id === taskId ? updatedTask : t), false)
       }
     } catch (e) {
       console.error('Update failed', e)
@@ -121,17 +125,26 @@ export default function ClientDetailPage() {
   }
 
   const publishTask = async (taskId) => {
+    const task = safeArray(tasks).find(t => t.id === taskId)
     setSaving(s => ({ ...s, [taskId]: true }))
     try {
-      const res = await apiFetch(`/api/tasks/${taskId}/publish`, { method: 'POST' })
+      const res = await apiFetch(`/api/tasks/${taskId}/publish`, {
+        method: 'POST',
+        body: JSON.stringify({ updated_at: task?.updated_at })
+      })
       if (!res.ok) {
         const error = await res.json()
         alert(error.error || 'Publish failed')
+        mutateTasks()
+      } else {
+        const data = await res.json()
+        if (data.task) {
+          mutateTasks(safeArray(tasks).map(t => t.id === taskId ? data.task : t), false)
+        }
       }
     } catch (e) {
       console.error('Publish failed', e)
     }
-    mutateTasks()
     setSaving(s => ({ ...s, [taskId]: false }))
   }
 
@@ -206,8 +219,16 @@ export default function ClientDetailPage() {
     const updatedContent = currentContent.map(c => c.id === contentId ? { ...c, [field]: value } : c)
     mutateContent(updatedContent, false)
 
-    await apiFetch(`/api/content/${contentId}`, { method: 'PUT', body: JSON.stringify({ [field]: value }) })
-    mutateContent()
+    const res = await apiFetch(`/api/content/${contentId}`, { method: 'PUT', body: JSON.stringify({ [field]: value, updated_at: (currentContent.find(c => c.id === contentId))?.updated_at }) })
+    if (res.status === 409) {
+      alert('Concurrency error: Content has been modified by another user.')
+      mutateContent()
+    } else if (res.ok) {
+      const updated = await res.json()
+      mutateContent(updatedContent.map(c => c.id === contentId ? updated : c), false)
+    } else {
+      mutateContent()
+    }
     setSaving(s => ({ ...s, [`c_${contentId}`]: false }))
   }
 

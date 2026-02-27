@@ -1,3 +1,8 @@
+import { NextResponse } from 'next/server'
+import { connectToMongo } from '@/lib/mongodb'
+import { handleCORS, withErrorLogging } from '@/lib/api-utils'
+import { validateBody } from '@/lib/validation'
+import { PortalContentApprovalSchema } from '@/lib/schemas/portal.schema'
 import { applyContentTransition, assertContentInvariant } from '@/lib/lifecycleEngine'
 
 export async function PUT(request, { params }) {
@@ -18,27 +23,33 @@ export async function PUT(request, { params }) {
             }
         }
 
+        const validation = validateBody(PortalContentApprovalSchema, body)
+        if (!validation.success) {
+            return handleCORS(NextResponse.json(validation.error, { status: 400 }))
+        }
+
+        const cleanData = validation.data
+
         const item = await database.collection('content_items').findOne({ id: contentId, client_id: clientDoc.id })
         if (!item) return handleCORS(NextResponse.json({ error: 'Content item not found' }, { status: 404 }))
 
         // Execute centralized lifecycle logic
         let finalState;
         try {
-            const updates = {};
-            if (topic_approval_status) updates.topic_approval_status = topic_approval_status;
-            if (blog_approval_status) updates.blog_approval_status = blog_approval_status;
-            if (blog_link) updates.blog_link = blog_link;
-
-            finalState = applyContentTransition(item, updates);
+            finalState = applyContentTransition(item, cleanData);
         } catch (error) {
             return handleCORS(NextResponse.json({ error: error.message }, { status: 400 }))
         }
 
-        // Atomic Update
-        await database.collection('content_items').updateOne(
-            { id: contentId },
+        // Atomic Update with Optimistic Locking
+        const result = await database.collection('content_items').updateOne(
+            { id: contentId, updated_at: item.updated_at },
             { $set: finalState }
         )
+
+        if (result.matchedCount === 0) {
+            return handleCORS(NextResponse.json({ error: 'Update conflict: Content has been modified since it was loaded' }, { status: 409 }))
+        }
 
         // Post-Update Invariant Re-Check
         const updated = await database.collection('content_items').findOne({ id: contentId })

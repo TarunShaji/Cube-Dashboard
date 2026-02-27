@@ -16,7 +16,7 @@ const STATUS_MAP = {
   'implemented/ completed': 'Completed', 'implemented/completed': 'Completed',
   'completed': 'Completed', 'complete': 'Completed', 'done': 'Completed', 'fixed': 'Completed',
   'work in progress': 'In Progress', 'in progress': 'In Progress', 'wip': 'In Progress',
-  'to be approved': 'To Be Approved', 'pending approval': 'To Be Approved',
+  'to be approved': 'Pending Review', 'pending approval': 'Pending Review', 'in review': 'Pending Review',
   'recurring': 'Recurring', 'blocked': 'Blocked',
   'to be started': 'To Be Started', 'not started': 'To Be Started',
   'pending': 'To Be Started', 'open': 'To Be Started', 'to do': 'To Be Started',
@@ -92,8 +92,8 @@ function rowToTask(row, headers, clientId) {
 // ────────── CLICKUP HELPERS ──────────
 const CU_STATUS_MAP = {
   'to do': 'To Be Started', 'open': 'To Be Started', 'not started': 'To Be Started',
-  'in progress': 'In Progress', 'active': 'In Progress', 'in review': 'To Be Approved',
-  'review': 'To Be Approved', 'approval': 'To Be Approved',
+  'in progress': 'In Progress', 'active': 'In Progress', 'in review': 'Pending Review',
+  'review': 'Pending Review', 'approval': 'Pending Review',
   'complete': 'Completed', 'done': 'Completed', 'closed': 'Completed',
   'blocked': 'Blocked', 'on hold': 'Blocked',
   'recurring': 'Recurring',
@@ -297,7 +297,7 @@ function CSVImport({ clients }) {
           <CardContent className="space-y-3 text-xs text-gray-500">
             <div><p className="font-medium text-gray-700 mb-1">Format A (Behno style):</p><code className="bg-white border border-gray-200 rounded px-2 py-1 block">To-dos, Duration, Status, ETA, Remarks</code></div>
             <div><p className="font-medium text-gray-700 mb-1">Format B (Warehouse style):</p><code className="bg-white border border-gray-200 rounded px-2 py-1 block">Category, Task, Status, Notes</code></div>
-            <div><p className="font-medium text-gray-700 mb-1">Status auto-mapping:</p><ul className="space-y-0.5"><li>"Work in Progress" → <span className="text-blue-600">In Progress</span></li><li>"Implemented/Completed" → <span className="text-green-600">Completed</span></li><li>"To Be Approved" → <span className="text-amber-600">To Be Approved</span></li></ul></div>
+            <div><p className="font-medium text-gray-700 mb-1">Status auto-mapping:</p><ul className="space-y-0.5"><li>"Work in Progress" → <span className="text-blue-600">In Progress</span></li><li>"Implemented/Completed" → <span className="text-green-600">Completed</span></li><li>"In Review" → <span className="text-amber-600">Pending Review</span></li></ul></div>
           </CardContent>
         </Card>
       )}

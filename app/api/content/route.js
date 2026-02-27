@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { connectToMongo } from '@/lib/mongodb'
 import { handleCORS, withAuth, withErrorLogging } from '@/lib/api-utils'
+import { applyContentTransition } from '@/lib/lifecycleEngine'
 import { safeURL, safeArray } from '@/lib/safe'
 import { validateBody } from '@/lib/validation'
 import { ContentSchema } from '@/lib/schemas/content.schema'
 
 export async function GET(request) {
-    return withErrorLogging(request, async () => {
+    return withAuth(request, async () => {
         const database = await connectToMongo()
         const url = safeURL(request.url)
         const clientId = url.searchParams.get('client_id')
@@ -38,21 +39,17 @@ export async function POST(request) {
         const cleanData = validation.data
         const { blog_title, client_id } = cleanData
 
-        const item = {
-            id: uuidv4(),
-            client_id,
-            blog_title,
-            blog_status: cleanData.blog_status || 'Draft',
-            week: cleanData.week || null,
-            primary_keyword: cleanData.primary_keyword || null,
-            writer: cleanData.writer || null,
-            blog_type: cleanData.blog_type || null,
-            blog_link: cleanData.blog_link || null,
-            topic_approval_status: cleanData.topic_approval_status || 'Pending',
-            blog_approval_status: cleanData.blog_approval_status || 'Pending Review',
-            published_date: cleanData.published_date || null,
-            created_at: new Date(),
-            updated_at: new Date()
+        let item;
+        try {
+            // Use engine to initialize state with intent
+            item = applyContentTransition(null, {
+                id: uuidv4(),
+                client_id,
+                blog_title,
+                ...cleanData
+            });
+        } catch (error) {
+            return handleCORS(NextResponse.json({ error: error.message }, { status: 400 }))
         }
 
         await database.collection('content_items').insertOne(item)

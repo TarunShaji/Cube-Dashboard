@@ -36,7 +36,19 @@ export async function PUT(request, { params }) {
         const current = await database.collection('content_items').findOne({ id: contentId })
         if (!current) return handleCORS(NextResponse.json({ error: 'Content item not found' }, { status: 404 }))
 
-        // 4. Apply Lifecycle Engine (Sole Authority)
+        // 4. Concurrency Control: Optimistic Locking
+        if (body.updated_at && current.updated_at) {
+            const clientTime = new Date(body.updated_at).getTime()
+            const dbTime = new Date(current.updated_at).getTime()
+            if (clientTime < dbTime) {
+                return handleCORS(NextResponse.json({
+                    error: 'Concurrency error: Content has been modified by another user',
+                    current: current
+                }, { status: 409 }))
+            }
+        }
+
+        // 5. Apply Lifecycle Engine (Sole Authority)
         let finalState;
         try {
             finalState = applyContentTransition(current, cleanUpdate);
@@ -44,14 +56,14 @@ export async function PUT(request, { params }) {
             return handleCORS(NextResponse.json({ error: error.message }, { status: 400 }))
         }
 
-        // 5. Atomic Update
+        // 6. Atomic Update
         const result = await database.collection('content_items').updateOne(
-            { id: contentId },
+            { id: contentId, updated_at: current.updated_at },
             { $set: finalState }
         )
 
         if (result.matchedCount === 0) {
-            return handleCORS(NextResponse.json({ error: 'Update failed' }, { status: 409 }))
+            return handleCORS(NextResponse.json({ error: 'Update conflict: Content state changed during operation' }, { status: 409 }))
         }
 
         // 6. Post-Update Re-Verification
@@ -74,7 +86,10 @@ export async function DELETE(request, { params }) {
             const { id: contentId } = params
             const database = await connectToMongo()
 
-            await database.collection('content_items').deleteOne({ id: contentId })
+            const result = await database.collection('content_items').deleteOne({ id: contentId })
+            if (result.deletedCount === 0) {
+                return handleCORS(NextResponse.json({ error: 'Content item not found or already deleted' }, { status: 404 }))
+            }
             return handleCORS(NextResponse.json({ message: 'Content item deleted' }))
         } catch (error) {
             return handleCORS(NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 }))

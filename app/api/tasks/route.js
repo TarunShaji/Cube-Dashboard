@@ -8,7 +8,7 @@ import { validateBody } from '@/lib/validation'
 import { TaskCreateSchema } from '@/lib/schemas/task.schema'
 
 export async function GET(request) {
-    return withErrorLogging(request, async () => {
+    return withAuth(request, async () => {
         const database = await connectToMongo()
         const url = safeURL(request.url)
         const query = {}

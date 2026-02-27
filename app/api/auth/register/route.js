@@ -8,10 +8,10 @@ export async function POST(request) {
     return withErrorLogging(request, async () => {
         const database = await connectToMongo()
         const body = await request.json()
-        const { name, email, role, password } = body
+        const { name, email, password } = body
 
-        if (!name || !email || !role || !password) {
-            return handleCORS(NextResponse.json({ error: 'All fields (name, email, role, password) are required' }, { status: 400 }))
+        if (!name || !email || !password) {
+            return handleCORS(NextResponse.json({ error: 'All fields (name, email, password) are required' }, { status: 400 }))
         }
 
         // 1. Check if email already exists
@@ -28,7 +28,6 @@ export async function POST(request) {
             id: uuidv4(),
             name,
             email: email.toLowerCase(),
-            role,
             password_hash: passwordHash,
             is_active: true,
             created_at: new Date(),

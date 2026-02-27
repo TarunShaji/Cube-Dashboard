@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
-import { handleCORS } from '@/lib/api-utils'
+import { handleCORS, rateLimit } from '@/lib/api-utils'
 
 /**
  * Telemetry endpoint for Dashboard Resilience.
  * Captures UI crashes from ErrorBoundary and critical lifecycle violations.
  */
 export async function POST(request) {
+    const limiter = rateLimit(request, { limit: 20, windowMs: 60000 })
+    if (limiter.blocked) return limiter.response
+
     try {
         const body = await request.json()
         const { type, message, stack, url, ...context } = body

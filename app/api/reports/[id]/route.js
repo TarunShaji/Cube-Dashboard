@@ -1,3 +1,6 @@
+import { NextResponse } from 'next/server'
+import { connectToMongo } from '@/lib/mongodb'
+import { handleCORS, withAuth } from '@/lib/api-utils'
 import { validateBody, rejectFields } from '@/lib/validation'
 import { ReportSchema } from '@/lib/schemas/report.schema'
 
@@ -21,17 +24,35 @@ export async function PUT(request, { params }) {
             return handleCORS(NextResponse.json(validation.error, { status: 400 }))
         }
 
+        // 3. Load Current State
+        const current = await database.collection('reports').findOne({ id: reportId })
+        if (!current) return handleCORS(NextResponse.json({ error: 'Report not found' }, { status: 404 }))
+
+        // 4. Concurrency Control: Optimistic Locking
+        // Note: For existing reports without updated_at, we skip the check but set it for future.
+        if (body.updated_at && current.updated_at) {
+            const clientTime = new Date(body.updated_at).getTime()
+            const dbTime = new Date(current.updated_at).getTime()
+            if (clientTime < dbTime) {
+                return handleCORS(NextResponse.json({
+                    error: 'Concurrency error: Report has been modified by another user',
+                    current: current
+                }, { status: 409 }))
+            }
+        }
+
         const cleanData = validation.data
         const { id, ...updateData } = cleanData
+        updateData.updated_at = new Date()
 
-        // 3. Update
+        // 5. Update
         const result = await database.collection('reports').updateOne(
-            { id: reportId },
+            { id: reportId, updated_at: current.updated_at }, // Match version
             { $set: updateData }
         )
 
         if (result.matchedCount === 0) {
-            return handleCORS(NextResponse.json({ error: 'Report not found' }, { status: 404 }))
+            return handleCORS(NextResponse.json({ error: 'Update conflict: Report state changed during operation' }, { status: 409 }))
         }
 
         const updated = await database.collection('reports').findOne({ id: reportId })
@@ -47,7 +68,10 @@ export async function DELETE(request, { params }) {
             const { id: reportId } = params
             const database = await connectToMongo()
 
-            await database.collection('reports').deleteOne({ id: reportId })
+            const result = await database.collection('reports').deleteOne({ id: reportId })
+            if (result.deletedCount === 0) {
+                return handleCORS(NextResponse.json({ error: 'Report not found or already deleted' }, { status: 404 }))
+            }
             return handleCORS(NextResponse.json({ message: 'Report deleted' }))
         } catch (error) {
             return handleCORS(NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 }))

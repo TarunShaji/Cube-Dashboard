@@ -65,7 +65,7 @@ export default function TeamPage() {
   const statusColors = {
     'Completed': 'bg-green-100 text-green-700',
     'In Progress': 'bg-blue-100 text-blue-700',
-    'To Be Approved': 'bg-amber-100 text-amber-700',
+    'Pending Review': 'bg-amber-100 text-amber-700',
     'Blocked': 'bg-red-100 text-red-700',
     'To Be Started': 'bg-gray-100 text-gray-600',
     'Recurring': 'bg-purple-100 text-purple-700',
@@ -104,7 +104,7 @@ export default function TeamPage() {
                   </div>
                   <div className="mt-3">
                     <p className="font-semibold text-gray-900">{m?.name}</p>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1 ${roleColors[m?.role] || 'bg-gray-100 text-gray-600'}`}>{m?.role}</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1 bg-blue-50 text-blue-700">Team</span>
                   </div>
                   <div className="flex items-center gap-1 mt-2 text-xs text-gray-400">
                     <Mail className="w-3 h-3" />

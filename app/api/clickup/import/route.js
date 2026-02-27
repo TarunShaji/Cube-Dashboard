@@ -16,7 +16,7 @@ export async function POST(request) {
         const CU_STATUS = {
             'to do': 'To Be Started', 'open': 'To Be Started', 'not started': 'To Be Started',
             'in progress': 'In Progress', 'active': 'In Progress',
-            'in review': 'To Be Approved', 'review': 'To Be Approved', 'approval': 'To Be Approved',
+            'in review': 'Pending Review', 'review': 'Pending Review', 'approval': 'Pending Review',
             'complete': 'Completed', 'done': 'Completed', 'closed': 'Completed',
             'blocked': 'Blocked', 'on hold': 'Blocked',
             'recurring': 'Recurring',

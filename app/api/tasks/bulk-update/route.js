@@ -22,12 +22,23 @@ export async function POST(request) {
 
             for (const task of tasks) {
                 try {
+                    // 1. Concurrency Check (Individual)
+                    // If the bulk call provides an updated_at map, we could check it here.
+                    // For now, we enforce strict version match during update.
+
                     const finalUpdate = applyTaskTransition(task, updates)
-                    await database.collection('tasks').updateOne(
-                        { id: task.id },
+                    finalUpdate.updated_at = new Date()
+
+                    const result = await database.collection('tasks').updateOne(
+                        { id: task.id, updated_at: task.updated_at },
                         { $set: finalUpdate }
                     )
-                    results.push(task.id)
+
+                    if (result.matchedCount > 0) {
+                        results.push(task.id)
+                    } else {
+                        errors.push({ id: task.id, error: 'Concurrency conflict or task missing' })
+                    }
                 } catch (error) {
                     errors.push({ id: task.id, error: error.message })
                 }

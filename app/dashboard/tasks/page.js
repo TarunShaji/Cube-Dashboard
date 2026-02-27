@@ -9,6 +9,7 @@ import { Plus, Trash2, RefreshCw, Link2, GripVertical, GripHorizontal } from 'lu
 import { safeJSON, safeArray } from '@/lib/safe'
 import { EditableCell } from '@/components/EditableCell'
 import { LinkCell } from '@/components/LinkCell'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, statusColors, priorityColors, approvalColors, internalApprovalColors, TASK_COLUMN_WIDTHS } from '@/lib/constants'
 import {
   DndContext,
@@ -40,6 +41,7 @@ export default function AllTasksPage() {
   const [bulkAction, setBulkAction] = useState('__none__')
   const [newTask, setNewTask] = useState({ title: '', client_id: '' })
   const [addingTask, setAddingTask] = useState(false)
+  const [confirmConfig, setConfirmConfig] = useState(null)
 
   // Filters – use sentinel 'all' so SelectItem never gets value=""
   const [filterClient, setFilterClient] = useState('all')
@@ -108,6 +110,9 @@ export default function AllTasksPage() {
         const error = await res.json()
         alert(error.error || 'Concurrency error: Task was modified by another user.')
         loadData()
+      } else if (res.ok) {
+        const updatedTask = await res.json()
+        setTasks(ts => ts.map(t => t.id === taskId ? updatedTask : t))
       }
     } catch (e) {
       console.error('Update failed', e)
@@ -117,24 +122,38 @@ export default function AllTasksPage() {
   }
 
   const publishTask = async (taskId) => {
+    const task = safeArray(tasks).find(t => t.id === taskId)
     setSaving(s => ({ ...s, [taskId]: true }))
     try {
-      const res = await apiFetch(`/api/tasks/${taskId}/publish`, { method: 'POST' })
+      const res = await apiFetch(`/api/tasks/${taskId}/publish`, {
+        method: 'POST',
+        body: JSON.stringify({ updated_at: task?.updated_at })
+      })
       if (!res.ok) {
         const error = await res.json()
         alert(error.error || 'Publish failed')
+        loadData()
+      } else {
+        const data = await res.json()
+        if (data.task) {
+          setTasks(ts => ts.map(t => t.id === taskId ? data.task : t))
+        }
       }
     } catch (e) {
       console.error('Publish failed', e)
     }
-    loadData()
     setSaving(s => ({ ...s, [taskId]: false }))
   }
 
-  const deleteTask = async (taskId) => {
-    if (!confirm('Delete this task?')) return
-    await apiFetch(`/api/tasks/${taskId}`, { method: 'DELETE' })
-    setTasks(ts => ts.filter(t => t.id !== taskId))
+  const deleteTask = (taskId) => {
+    setConfirmConfig({
+      title: 'Delete Task',
+      description: 'This will permanently delete the task. This cannot be undone.',
+      onConfirm: async () => {
+        await apiFetch(`/api/tasks/${taskId}`, { method: 'DELETE' })
+        setTasks(ts => ts.filter(t => t.id !== taskId))
+      }
+    })
   }
 
   const toggleSelect = (id) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
@@ -350,7 +369,7 @@ export default function AllTasksPage() {
           <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All Statuses" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all" className="text-xs">All Statuses</SelectItem>
-            {STATUSES.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}
+            {STATUSES.map(s => <SelectItem key={s} value={s} className="text-xs">{s === 'Pending Review' ? 'Review' : s}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterCategory} onValueChange={setFilterCategory}>
@@ -392,7 +411,7 @@ export default function AllTasksPage() {
               <SelectItem value="status:In Progress" className="text-xs">Set: In Progress</SelectItem>
               <SelectItem value="status:Completed" className="text-xs">Set: Completed</SelectItem>
               <SelectItem value="status:Blocked" className="text-xs">Set: Blocked</SelectItem>
-              <SelectItem value="status:To Be Approved" className="text-xs">Set: To Be Approved</SelectItem>
+              <SelectItem value="status:Pending Review" className="text-xs">Set: Review</SelectItem>
             </SelectContent>
           </Select>
           <Button size="sm" className="h-7 text-xs" onClick={handleBulkAction} disabled={bulkAction === '__none__'}>Apply</Button>

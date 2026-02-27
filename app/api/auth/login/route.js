@@ -28,7 +28,7 @@ export async function POST(request) {
         }
 
         const token = jwt.sign(
-            { id: member.id, email: member.email, role: member.role, name: member.name },
+            { id: member.id, email: member.email, name: member.name },
             JWT_SECRET,
             { expiresIn: '7d' }
         )
@@ -45,7 +45,7 @@ export async function POST(request) {
 
         return handleCORS(NextResponse.json({
             token, // Keep sending token for scripts
-            user: { id: member.id, email: member.email, role: member.role, name: member.name }
+            user: { id: member.id, email: member.email, name: member.name }
         }))
     })
 }

@@ -11,6 +11,7 @@ import { EditableCell } from '@/components/EditableCell'
 import { LinkCell } from '@/components/LinkCell'
 import { FileText, Plus, ExternalLink, Trash2, Link2, Filter, Search, GripVertical, GripHorizontal } from 'lucide-react'
 import { safeJSON, safeArray } from '@/lib/safe'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import {
   DndContext,
   closestCenter,
@@ -48,6 +49,7 @@ export default function ContentCalendarPage() {
   const [filters, setFilters] = useState({ client_id: '', blog_status: '', search: '' })
   const [showFilters, setShowFilters] = useState(false)
   const [columnOrder, setColumnOrder] = useState([])
+  const [confirmConfig, setConfirmConfig] = useState(null)
 
   useEffect(() => {
     const saved = localStorage.getItem('content_column_order')
@@ -60,15 +62,35 @@ export default function ContentCalendarPage() {
     setSaving(s => ({ ...s, [contentId]: true }))
     const updatedContent = content.map(c => c?.id === contentId ? { ...c, [field]: value } : c)
     mutateContent(updatedContent, false)
-    await apiFetch(`/api/content/${contentId}`, { method: 'PUT', body: JSON.stringify({ [field]: value }) })
-    mutateContent()
+    const res = await apiFetch(`/api/content/${contentId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        [field]: value,
+        updated_at: (content.find(c => c?.id === contentId))?.updated_at
+      })
+    })
+
+    if (res.status === 409) {
+      alert('Concurrency error: Content was modified by another user.')
+      mutateContent()
+    } else if (res.ok) {
+      const updated = await res.json()
+      mutateContent(content.map(c => c.id === contentId ? updated : c), false)
+    } else {
+      mutateContent()
+    }
     setSaving(s => ({ ...s, [contentId]: false }))
   }
 
-  const deleteContent = async (contentId) => {
-    if (!confirm('Delete this content item?')) return
-    await apiFetch(`/api/content/${contentId}`, { method: 'DELETE' })
-    mutateContent()
+  const deleteContent = (contentId) => {
+    setConfirmConfig({
+      title: 'Delete Content Item',
+      description: 'This will permanently delete this blog content item. This cannot be undone.',
+      onConfirm: async () => {
+        await apiFetch(`/api/content/${contentId}`, { method: 'DELETE' })
+        mutateContent()
+      }
+    })
   }
 
   // Filter content

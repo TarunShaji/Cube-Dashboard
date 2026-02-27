@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { connectToMongo } from '@/lib/mongodb'
+import bcrypt from 'bcryptjs'
 import { handleCORS, withAuth } from '@/lib/api-utils'
 import { validateBody, rejectFields } from '@/lib/validation'
 import { ClientSchema } from '@/lib/schemas/client.schema'
 
 export async function GET(request, { params }) {
-    try {
+    return withAuth(request, async () => {
         const { id } = params
         const database = await connectToMongo()
         const client = await database.collection('clients').findOne({ id })
@@ -14,9 +15,7 @@ export async function GET(request, { params }) {
 
         const { _id, ...clientData } = client
         return handleCORS(NextResponse.json(clientData))
-    } catch (error) {
-        return handleCORS(NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 }))
-    }
+    })
 }
 
 const FORBIDDEN_FIELDS = ['id', 'slug', 'is_active'];
@@ -43,6 +42,10 @@ export async function PUT(request, { params }) {
         const { id: unusedId, ...updateData } = cleanData
         updateData.updated_at = new Date()
 
+        if (updateData.portal_password) {
+            updateData.portal_password = await bcrypt.hash(updateData.portal_password, 10)
+        }
+
         // 3. Update
         const result = await database.collection('clients').updateOne(
             { id: clientId },
@@ -66,7 +69,11 @@ export async function DELETE(request, { params }) {
             const { id: clientId } = params
             const database = await connectToMongo()
 
-            await database.collection('clients').deleteOne({ id: clientId })
+            const result = await database.collection('clients').deleteOne({ id: clientId })
+            if (result.deletedCount === 0) {
+                return handleCORS(NextResponse.json({ error: 'Client not found or already deleted' }, { status: 404 }))
+            }
+            // Cascade delete (safe to run even if counts are 0)
             await database.collection('tasks').deleteMany({ client_id: clientId })
             await database.collection('reports').deleteMany({ client_id: clientId })
 

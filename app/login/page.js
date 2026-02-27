@@ -24,7 +24,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const endpoint = isSignUp ? '/api/auth/register' : '/api/auth/login'
-      const payload = isSignUp ? { email, password, name, role } : { email, password }
+      const payload = isSignUp ? { email, password, name } : { email, password }
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -107,24 +107,7 @@ export default function LoginPage() {
                   className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-600"
                 />
               </div>
-              {isSignUp && (
-                <div className="space-y-2">
-                  <Label htmlFor="role" className="text-slate-300">Your Role</Label>
-                  <select
-                    id="role"
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full h-10 px-3 rounded-md bg-slate-900/50 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    disabled={loading}
-                  >
-                    <option value="SEO">SEO Specialist</option>
-                    <option value="Design">Designer</option>
-                    <option value="Tech">Tech / Engineer</option>
-                    <option value="Account Manager">Account Manager</option>
-                    <option value="Admin">Administrator</option>
-                  </select>
-                </div>
-              )}
+              {/* role selector removed for simplification */}
               <div className="space-y-2">
                 <Label htmlFor="password" title="password" className="text-slate-300">Password</Label>
                 <Input

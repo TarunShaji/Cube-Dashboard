@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { connectToMongo } from '@/lib/mongodb'
 import { handleCORS, withErrorLogging } from '@/lib/api-utils'
-import { applyTaskTransition } from '@/lib/lifecycleEngine'
-
+import { validateBody } from '@/lib/validation'
+import { PortalTaskApprovalSchema } from '@/lib/schemas/portal.schema'
 import { applyTaskTransition, assertTaskInvariant } from '@/lib/lifecycleEngine'
 
 export async function PUT(request, { params }) {
@@ -23,6 +23,13 @@ export async function PUT(request, { params }) {
             }
         }
 
+        const validation = validateBody(PortalTaskApprovalSchema, body)
+        if (!validation.success) {
+            return handleCORS(NextResponse.json(validation.error, { status: 400 }))
+        }
+
+        const cleanData = validation.data
+
         const task = await database.collection('tasks').findOne({ id: taskId, client_id: clientDoc.id })
         if (!task) return handleCORS(NextResponse.json({ error: 'Task not found' }, { status: 404 }))
 
@@ -30,16 +37,20 @@ export async function PUT(request, { params }) {
         let finalState;
         try {
             // Note: We use the engine to compute everything from the intent (client_approval)
-            finalState = applyTaskTransition(task, { client_approval, client_feedback_note });
+            finalState = applyTaskTransition(task, cleanData);
         } catch (error) {
             return handleCORS(NextResponse.json({ error: error.message }, { status: 400 }))
         }
 
-        // Atomic Update
+        // Atomic Update with Optimistic Locking
         const result = await database.collection('tasks').updateOne(
-            { id: taskId },
+            { id: taskId, updated_at: task.updated_at },
             { $set: finalState }
         )
+
+        if (result.matchedCount === 0) {
+            return handleCORS(NextResponse.json({ error: 'Update conflict: Task has been modified since it was loaded' }, { status: 409 }))
+        }
 
         // Post-Update Invariant Re-Check
         const updated = await database.collection('tasks').findOne({ id: taskId })

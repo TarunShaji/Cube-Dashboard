@@ -13,19 +13,37 @@ export async function POST(request, { params }) {
             const current = await database.collection('tasks').findOne({ id: taskId })
             if (!current) return handleCORS(NextResponse.json({ error: 'Task not found' }, { status: 404 }))
 
-            // Apply "Publish" transition via lifecycle engine
+            let body = {};
+            try { body = await request.json() } catch (e) { }
+
+            // 5. Concurrency Control: Optimistic Locking
+            if (body.updated_at && current.updated_at) {
+                const clientTime = new Date(body.updated_at).getTime()
+                const dbTime = new Date(current.updated_at).getTime()
+                if (clientTime < dbTime) {
+                    return handleCORS(NextResponse.json({
+                        error: 'Concurrency error: Task has been modified by another user',
+                        current: current
+                    }, { status: 409 }))
+                }
+            }
+
+            // 6. Apply "Publish" transition via lifecycle engine
             let finalUpdate;
             try {
-                // Requesting visibility toggles the 'Send Link' action in the engine
                 finalUpdate = applyTaskTransition(current, { client_link_visible: true });
             } catch (error) {
                 return handleCORS(NextResponse.json({ error: error.message }, { status: 400 }))
             }
 
-            await database.collection('tasks').updateOne(
-                { id: taskId },
+            const result = await database.collection('tasks').updateOne(
+                { id: taskId, updated_at: current.updated_at },
                 { $set: finalUpdate }
             )
+
+            if (result.matchedCount === 0) {
+                return handleCORS(NextResponse.json({ error: 'Update conflict: Task state changed during operation' }, { status: 409 }))
+            }
 
             // Post-Update Re-Verification
             const updated = await database.collection('tasks').findOne({ id: taskId })
