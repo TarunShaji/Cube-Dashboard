@@ -14,12 +14,27 @@ export async function POST(request) {
             const database = await connectToMongo()
             const body = await request.json()
 
+            // Explicit import schema — does NOT inherit .strict() from ContentSchema.
+            // Unknown fields are stripped, not rejected.
+            const ContentImportItemSchema = z.object({
+                blog_title: z.string().min(1),
+                client_id: z.string().optional().nullable(),
+                week: z.string().optional().nullable(),
+                primary_keyword: z.string().optional().nullable(),
+                blog_type: z.string().optional().nullable(),
+                writer: z.string().optional().nullable(),
+                blog_status: z.string().optional().nullable(),
+                blog_link: z.string().optional().nullable(),
+                published_date: z.string().optional().nullable(),
+            }) // no .strict() — unknown keys stripped by default
+
             const validation = validateBody(z.object({
-                items: z.array(ContentSchema.partial().extend({ blog_title: z.string().min(1) })),
+                items: z.array(ContentImportItemSchema),
                 client_id: z.string().uuid()
             }), body)
 
             if (!validation.success) {
+                console.error('[content/bulk] Validation failed:', JSON.stringify(validation.error))
                 return handleCORS(NextResponse.json(validation.error, { status: 400 }))
             }
 

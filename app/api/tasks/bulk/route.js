@@ -16,12 +16,31 @@ export async function POST(request) {
             const body = await request.json()
             const { tasks, client_id } = body
 
+            // Explicit import schema — does NOT inherit .strict() from TaskCreateSchema.
+            // Unknown fields are stripped, not rejected. This avoids 400s from extra columns.
+            const TaskImportItemSchema = z.object({
+                title: z.string().min(1),
+                client_id: z.string().optional().nullable(),
+                status: z.string().optional().nullable(),
+                category: z.string().optional().nullable(),
+                priority: z.string().optional().nullable(),
+                link_url: z.string().optional().nullable(),
+                assigned_to: z.string().optional().nullable(),
+                eta_end: z.string().optional().nullable(),
+                eta_start: z.string().optional().nullable(),
+                duration_days: z.string().optional().nullable(),
+                remarks: z.string().optional().nullable(),
+                internal_approval: z.string().optional().nullable(),
+                client_feedback_note: z.string().optional().nullable(),
+            }) // no .strict() — unknown keys are stripped by default
+
             const validation = validateBody(z.object({
-                tasks: z.array(TaskCreateSchema.partial().extend({ title: z.string().min(1) })),
+                tasks: z.array(TaskImportItemSchema),
                 client_id: z.string().uuid()
             }), body)
 
             if (!validation.success) {
+                console.error('[tasks/bulk] Validation failed:', JSON.stringify(validation.error))
                 return handleCORS(NextResponse.json(validation.error, { status: 400 }))
             }
 

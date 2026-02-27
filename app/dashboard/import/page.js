@@ -226,20 +226,19 @@ function rowToContent(row, headers, clientId) {
   const writerField = h(['intern name', 'intern', 'writer', 'author', 'assigned'])
   if (writerField && str(row[writerField])) item.writer = str(row[writerField])
 
-  // Outline status
-  const outlineField = h(['outline'])
-  if (outlineField && str(row[outlineField])) item.outline_status = mapOutlineStatus(row[outlineField])
+  // outline_status is not in ContentSchema — skip to avoid validation errors
 
   // Blog status
   const statusField = h(['blog status', 'status', 'intern status'])
   if (statusField && str(row[statusField])) item.blog_status = mapBlogStatus(row[statusField])
 
-  // Blog link — extract first URL from cell (handles "https://… 26/11/25" style)
+  // Blog link — regex-extract the first http(s) URL from the cell
+  // handles values like "https://example.com/slug 26/11/25" cleanly
   const linkField = h(['live link', 'blog link', 'publishing link', 'link', 'url'])
   if (linkField) {
     const rawLink = str(row[linkField])
     if (rawLink) {
-      const urlMatch = rawLink.match(/https?:\/\/[^\s'"]+/)
+      const urlMatch = rawLink.match(/https?:\/\/[^\s'"<>]+/)
       if (urlMatch) item.blog_link = urlMatch[0]
     }
   }
@@ -323,7 +322,7 @@ function ImportShell({
                     <p className="text-sm font-medium text-green-800">{result.success} {actionLabel} imported successfully</p>
                     {result.failed > 0 && <p className="text-xs text-red-500 mt-0.5">{result.failed} rows skipped (missing required fields)</p>}
                     {safeArray(result.errors).slice(0, 3).map((e, i) => (
-                      <p key={i} className="text-xs text-red-400 mt-0.5 truncate">{e.title || e}: {e.error}</p>
+                      <p key={i} className="text-xs text-red-400 mt-0.5 truncate">{String(e.title ?? (e.index != null ? `Row ${e.index + 1}` : 'Error'))}: {String(e.error ?? e)}</p>
                     ))}
                   </>}
               </div>
