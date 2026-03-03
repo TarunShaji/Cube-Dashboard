@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { connectToMongo } from '@/lib/mongodb'
-import { handleCORS, withAuth } from '@/lib/api-utils'
-import { validateBody } from '@/lib/validation'
-import { TeamMemberSchema } from '@/lib/schemas/team.schema'
+import { connectToMongo } from '@/lib/db/mongodb'
+import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
+import { validateBody } from '@/lib/middleware/validation'
+import { TeamMemberSchema } from '@/lib/db/schemas/team.schema'
 
 export async function PUT(request, { params }) {
     return withAuth(request, async () => {

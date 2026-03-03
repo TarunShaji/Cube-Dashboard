@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import { connectToMongo } from '@/lib/mongodb'
-import { handleCORS, withAuth } from '@/lib/api-utils'
-import { applyContentTransition } from '@/lib/lifecycleEngine'
+import { connectToMongo } from '@/lib/db/mongodb'
+import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
+import { applyContentTransition } from '@/lib/engine/lifecycle'
 import { safeURL, safeArray } from '@/lib/safe'
-import { validateBody } from '@/lib/validation'
-import { ContentSchema } from '@/lib/schemas/content.schema'
+import { validateBody } from '@/lib/middleware/validation'
+import { ContentSchema } from '@/lib/db/schemas/content.schema'
 
 export const runtime = 'nodejs';
 

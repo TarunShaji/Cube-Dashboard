@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { handleCORS } from '@/lib/api-utils'
+import { handleCORS } from '@/lib/middleware/api-utils'
 
 export async function GET() {
     return handleCORS(NextResponse.json({ message: 'CubeHQ Dashboard API v1.0' }))

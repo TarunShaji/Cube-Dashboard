@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { connectToMongo } from '@/lib/mongodb'
-import { handleCORS, withAuth } from '@/lib/api-utils'
-import { applyContentTransition, assertContentInvariant } from '@/lib/lifecycleEngine'
+import { connectToMongo } from '@/lib/db/mongodb'
+import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
+import { applyContentTransition, assertContentInvariant } from '@/lib/engine/lifecycle'
 
 export const runtime = 'nodejs';
 

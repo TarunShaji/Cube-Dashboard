@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { connectToMongo } from '@/lib/mongodb'
-import { handleCORS, withErrorLogging } from '@/lib/api-utils'
-import { validateBody } from '@/lib/validation'
-import { PortalContentApprovalSchema } from '@/lib/schemas/portal.schema'
-import { applyContentTransition, assertContentInvariant } from '@/lib/lifecycleEngine'
+import { connectToMongo } from '@/lib/db/mongodb'
+import { handleCORS, withErrorLogging } from '@/lib/middleware/api-utils'
+import { validateBody } from '@/lib/middleware/validation'
+import { PortalContentApprovalSchema } from '@/lib/db/schemas/portal.schema'
+import { applyContentTransition, assertContentInvariant } from '@/lib/engine/lifecycle'
 
 export const runtime = 'nodejs';
 

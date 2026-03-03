@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import crypto from 'crypto'
-import { connectToMongo } from '@/lib/mongodb'
-import { handleCORS, withAuth, withErrorLogging } from '@/lib/api-utils'
-import { applyTaskTransition, assertTaskInvariant } from '@/lib/lifecycleEngine'
+import { connectToMongo } from '@/lib/db/mongodb'
+import { handleCORS, withAuth, withErrorLogging } from '@/lib/middleware/api-utils'
+import { applyTaskTransition, assertTaskInvariant } from '@/lib/engine/lifecycle'
 
-import { TaskCreateSchema } from '@/lib/schemas/task.schema'
-import { validateBody } from '@/lib/validation'
+import { TaskCreateSchema } from '@/lib/db/schemas/task.schema'
+import { validateBody } from '@/lib/middleware/validation'
 import { z } from 'zod'
 
 export async function POST(request) {

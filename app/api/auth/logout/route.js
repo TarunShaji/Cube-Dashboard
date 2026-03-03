@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { handleCORS, withErrorLogging } from '@/lib/api-utils'
+import { handleCORS, withErrorLogging } from '@/lib/middleware/api-utils'
 
 export const runtime = 'nodejs';
 

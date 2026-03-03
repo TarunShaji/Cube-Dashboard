@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import useSWR from 'swr'
-import { apiFetch, swrFetcher } from '@/lib/auth'
+import { apiFetch, swrFetcher } from '@/lib/middleware/auth'
 import { safeArray } from '@/lib/safe'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -351,7 +351,7 @@ function FormatGuide({ actionLabel }) {
             <li><span className="font-medium">Week / Wk</span> — kept as number 1–10</li>
             <li><span className="font-medium">Keyword / Primary Keyword / Primary Keywords</span></li>
             <li><span className="font-medium">Writer / Author</span></li>
-            <li><span className="font-medium">Blog Doc / Blog Document</span></li>
+            <li><span className="font-medium">Blog Doc / Blog Document / Blog</span></li>
             <li><span className="font-medium">Blog Link / Link / Live Link / Published Link / Publishing Link</span></li>
             <li><span className="font-medium">Published / Published Date / Date of Publication</span> → normalised to YYYY-MM-DD</li>
           </ul>

@@ -8,7 +8,7 @@ export const metadata = {
   description: 'Internal dashboard and client portal for marketing agencies',
 }
 
-import { SWRProvider } from '@/components/SWRProvider'
+import { SWRProvider } from '@/components/shared/SWRProvider'
 import ErrorBoundary from '@/components/ErrorBoundary'
 
 export default function RootLayout({ children }) {

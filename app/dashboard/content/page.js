@@ -4,17 +4,17 @@ import { useEffect, useState, useRef, useMemo, Suspense } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { apiFetch, swrFetcher } from '@/lib/auth'
+import { apiFetch, swrFetcher } from '@/lib/middleware/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { EditableCell } from '@/components/EditableCell'
-import { LinkCell } from '@/components/LinkCell'
+import { EditableCell } from '@/components/table/EditableCell'
+import { LinkCell } from '@/components/table/LinkCell'
 import { FileText, Plus, Trash2, Filter, Search, GripVertical, GripHorizontal } from 'lucide-react'
 import { safeJSON, safeArray } from '@/lib/safe'
-import { Pagination } from '@/components/Pagination'
-import { ClientSwitcher } from '@/components/ClientSwitcher'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { Pagination } from '@/components/shared/Pagination'
+import { ClientSwitcher } from '@/components/shared/ClientSwitcher'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import {
   DndContext,
   closestCenter,
@@ -126,8 +126,9 @@ function ContentCalendarContent() {
 
   const updateContent = async (contentId, field, value) => {
     setSaving(s => ({ ...s, [contentId]: true }))
-    const updatedContent = content.map(c => c?.id === contentId ? { ...c, [field]: value } : c)
-    mutateContent(updatedContent, false)
+    const optimistic = content.map(c => c?.id === contentId ? { ...c, [field]: value } : c)
+    // Preserve the paginated envelope — only replace the data array
+    mutateContent({ ...contentResponse, data: optimistic }, false)
     const res = await apiFetch(`/api/content/${contentId}`, {
       method: 'PUT',
       body: JSON.stringify({
@@ -141,7 +142,7 @@ function ContentCalendarContent() {
       mutateContent()
     } else if (res.ok) {
       const updated = await res.json()
-      mutateContent(content.map(c => c.id === contentId ? updated : c), false)
+      mutateContent({ ...contentResponse, data: optimistic.map(c => c.id === contentId ? updated : c) }, false)
     } else {
       mutateContent()
     }
@@ -163,7 +164,8 @@ function ContentCalendarContent() {
       } else {
         const data = await res.json()
         if (data.content) {
-          mutateContent(content.map(c => c.id === contentId ? data.content : c), false)
+          // Preserve envelope so the page does not go blank
+          mutateContent({ ...contentResponse, data: content.map(c => c.id === contentId ? data.content : c) }, false)
         }
       }
     } catch (e) {

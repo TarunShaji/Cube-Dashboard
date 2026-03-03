@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { connectToMongo } from '@/lib/mongodb'
-import { handleCORS, withAuth } from '@/lib/api-utils'
-import { applyTaskTransition, assertTaskInvariant } from '@/lib/lifecycleEngine'
+import { connectToMongo } from '@/lib/db/mongodb'
+import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
+import { applyTaskTransition, assertTaskInvariant } from '@/lib/engine/lifecycle'
 
 export async function POST(request, { params }) {
     return withAuth(request, async () => {

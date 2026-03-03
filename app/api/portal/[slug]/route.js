@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { connectToMongo } from '@/lib/mongodb'
-import { handleCORS, withErrorLogging } from '@/lib/api-utils'
+import { connectToMongo } from '@/lib/db/mongodb'
+import { handleCORS, withErrorLogging } from '@/lib/middleware/api-utils'
 import { safeArray } from '@/lib/safe'
 
 export const runtime = 'nodejs';

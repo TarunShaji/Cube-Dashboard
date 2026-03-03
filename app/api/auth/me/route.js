@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { handleCORS, withErrorLogging, verifyToken } from '@/lib/api-utils'
+import { handleCORS, withErrorLogging, verifyToken } from '@/lib/middleware/api-utils'
 
 export const runtime = 'nodejs';
 

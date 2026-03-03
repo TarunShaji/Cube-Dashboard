@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import { connectToMongo } from '@/lib/mongodb'
-import { handleCORS, withErrorLogging, verifyToken } from '@/lib/api-utils'
+import { connectToMongo } from '@/lib/db/mongodb'
+import { handleCORS, withErrorLogging, verifyToken } from '@/lib/middleware/api-utils'
 
 export const runtime = 'nodejs';
 

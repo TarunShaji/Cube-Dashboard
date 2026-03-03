@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { getUser, logout } from '@/lib/auth'
+import { getUser, logout } from '@/lib/middleware/auth'
 import { safeArray } from '@/lib/safe'
 import {
   LayoutDashboard, Users, CheckSquare, BarChart3,

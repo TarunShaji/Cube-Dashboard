@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { connectToMongo } from '@/lib/mongodb'
-import { handleCORS, withErrorLogging } from '@/lib/api-utils'
-import { validateBody } from '@/lib/validation'
-import { PortalTaskApprovalSchema } from '@/lib/schemas/portal.schema'
-import { applyTaskTransition, assertTaskInvariant } from '@/lib/lifecycleEngine'
+import { connectToMongo } from '@/lib/db/mongodb'
+import { handleCORS, withErrorLogging } from '@/lib/middleware/api-utils'
+import { validateBody } from '@/lib/middleware/validation'
+import { PortalTaskApprovalSchema } from '@/lib/db/schemas/portal.schema'
+import { applyTaskTransition, assertTaskInvariant } from '@/lib/engine/lifecycle'
 
 export const runtime = 'nodejs';
 

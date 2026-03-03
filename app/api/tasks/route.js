@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import { connectToMongo } from '@/lib/mongodb'
-import { handleCORS, withAuth } from '@/lib/api-utils'
-import { applyTaskTransition, assertTaskInvariant } from '@/lib/lifecycleEngine'
+import { connectToMongo } from '@/lib/db/mongodb'
+import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
+import { applyTaskTransition, assertTaskInvariant } from '@/lib/engine/lifecycle'
 import { safeURL, safeArray } from '@/lib/safe'
-import { validateBody, rejectFields } from '@/lib/validation'
-import { TaskCreateSchema } from '@/lib/schemas/task.schema'
+import { validateBody, rejectFields } from '@/lib/middleware/validation'
+import { TaskCreateSchema } from '@/lib/db/schemas/task.schema'
 
 export const runtime = 'nodejs';
 

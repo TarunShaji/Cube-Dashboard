@@ -4,20 +4,20 @@ import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import useSWR, { mutate } from 'swr'
-import { apiFetch, swrFetcher } from '@/lib/auth'
+import { apiFetch, swrFetcher } from '@/lib/middleware/auth'
 import { safeURL, safeJSON, safeArray } from '@/lib/safe'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Pagination } from '@/components/Pagination'
+import { Pagination } from '@/components/shared/Pagination'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import { EditableCell } from '@/components/EditableCell'
-import { LinkCell } from '@/components/LinkCell'
+import { EditableCell } from '@/components/table/EditableCell'
+import { LinkCell } from '@/components/table/LinkCell'
 import { Plus, ExternalLink, Trash2, Link2, Settings, BarChart3, FileText, GripVertical, GripHorizontal, Folder, Image, Library, Search } from 'lucide-react'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import {
   DndContext,
   closestCenter,
@@ -189,20 +189,20 @@ export default function ClientDetailPage() {
   }, [client])
 
   const updateTask = async (taskId, field, value) => {
-    const task = safeArray(tasks).find(t => t.id === taskId)
+    const task = allTasks.find(t => t.id === taskId)
     if (!task) return
 
     setSaving(s => ({ ...s, [taskId]: true }))
-    const currentTasks = tasks || []
-    const updatedTasks = currentTasks.map(t => t.id === taskId ? { ...t, [field]: value } : t)
-    mutateTasks(updatedTasks, false)
+    // allTasks is already the extracted array; wrap in envelope for mutate
+    const optimistic = allTasks.map(t => t.id === taskId ? { ...t, [field]: value } : t)
+    mutateTasks({ ...(tasks || {}), data: optimistic, items: optimistic }, false)
 
     try {
       const res = await apiFetch(`/api/tasks/${taskId}`, {
         method: 'PUT',
         body: JSON.stringify({
           [field]: value,
-          updated_at: task.updated_at // Send for optimistic locking
+          updated_at: task.updated_at
         })
       })
 
@@ -212,7 +212,7 @@ export default function ClientDetailPage() {
         mutateTasks()
       } else if (res.ok) {
         const updatedTask = await res.json()
-        mutateTasks(currentTasks.map(t => t.id === taskId ? updatedTask : t), false)
+        mutateTasks({ ...(tasks || {}), data: optimistic.map(t => t.id === taskId ? updatedTask : t), items: optimistic.map(t => t.id === taskId ? updatedTask : t) }, false)
       }
     } catch (e) {
       console.error('Update failed', e)
@@ -247,7 +247,7 @@ export default function ClientDetailPage() {
   }
 
   const publishContent = async (contentId) => {
-    const item = safeArray(content).find(c => c?.id === contentId)
+    const item = allContent.find(c => c?.id === contentId)
     setSaving(s => ({ ...s, [`c_${contentId}`]: true }))
     try {
       const res = await apiFetch(`/api/content/${contentId}/publish`, {
@@ -261,7 +261,8 @@ export default function ClientDetailPage() {
       } else {
         const data = await res.json()
         if (data.content) {
-          mutateContent(safeArray(content).map(c => c.id === contentId ? data.content : c), false)
+          const updated = allContent.map(c => c.id === contentId ? data.content : c)
+          mutateContent({ ...(content || {}), data: updated }, false)
         }
       }
     } catch (e) {
@@ -425,17 +426,23 @@ export default function ClientDetailPage() {
 
   const updateContent = async (contentId, field, value) => {
     setSaving(s => ({ ...s, [`c_${contentId}`]: true }))
-    const currentContent = content || []
-    const updatedContent = currentContent.map(c => c.id === contentId ? { ...c, [field]: value } : c)
-    mutateContent(updatedContent, false)
+    // allContent is the extracted array (content?.data || content via safeArray)
+    const optimistic = allContent.map(c => c.id === contentId ? { ...c, [field]: value } : c)
+    mutateContent({ ...(content || {}), data: optimistic }, false)
 
-    const res = await apiFetch(`/api/content/${contentId}`, { method: 'PUT', body: JSON.stringify({ [field]: value, updated_at: (currentContent.find(c => c.id === contentId))?.updated_at }) })
+    const res = await apiFetch(`/api/content/${contentId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        [field]: value,
+        updated_at: allContent.find(c => c.id === contentId)?.updated_at
+      })
+    })
     if (res.status === 409) {
       alert('Concurrency error: Content has been modified by another user.')
       mutateContent()
     } else if (res.ok) {
       const updated = await res.json()
-      mutateContent(updatedContent.map(c => c.id === contentId ? updated : c), false)
+      mutateContent({ ...(content || {}), data: optimistic.map(c => c.id === contentId ? updated : c) }, false)
     } else {
       mutateContent()
     }

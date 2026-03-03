@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { connectToMongo } from '@/lib/mongodb'
-import { handleCORS, withAuth } from '@/lib/api-utils'
-import { validateBody, rejectFields } from '@/lib/validation'
-import { ReportSchema } from '@/lib/schemas/report.schema'
+import { connectToMongo } from '@/lib/db/mongodb'
+import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
+import { validateBody, rejectFields } from '@/lib/middleware/validation'
+import { ReportSchema } from '@/lib/db/schemas/report.schema'
 
 export const runtime = 'nodejs';
 

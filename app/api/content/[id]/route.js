@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { connectToMongo } from '@/lib/mongodb'
-import { handleCORS, withAuth } from '@/lib/api-utils'
-import { applyContentTransition, assertContentInvariant } from '@/lib/lifecycleEngine'
-import { validateBody, rejectFields } from '@/lib/validation'
-import { ContentUpdateSchema } from '@/lib/schemas/content.schema'
+import { connectToMongo } from '@/lib/db/mongodb'
+import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
+import { applyContentTransition, assertContentInvariant } from '@/lib/engine/lifecycle'
+import { validateBody, rejectFields } from '@/lib/middleware/validation'
+import { ContentUpdateSchema } from '@/lib/db/schemas/content.schema'
 
 export const runtime = 'nodejs';
 

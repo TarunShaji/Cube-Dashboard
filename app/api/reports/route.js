@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import { connectToMongo } from '@/lib/mongodb'
-import { handleCORS, withAuth } from '@/lib/api-utils'
+import { connectToMongo } from '@/lib/db/mongodb'
+import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
 import { safeURL, safeArray } from '@/lib/safe'
-import { validateBody } from '@/lib/validation'
-import { ReportSchema } from '@/lib/schemas/report.schema'
+import { validateBody } from '@/lib/middleware/validation'
+import { ReportSchema } from '@/lib/db/schemas/report.schema'
 
 export const runtime = 'nodejs';
 
