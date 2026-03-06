@@ -25,8 +25,6 @@ const navItems = [
 
 export default function DashboardLayout({ children }) {
   const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
   const [user, setUser] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
@@ -42,20 +40,6 @@ export default function DashboardLayout({ children }) {
   const handleLogout = () => {
     logout()
     router.push('/login')
-  }
-
-  const isActive = (item) => {
-    if (item.exact) return pathname === item.href
-    if (item.href.includes('?')) {
-      const [path, query] = item.href.split('?')
-      const itemParams = new URLSearchParams(query)
-
-      const pathMatch = pathname === path
-      const serviceMatch = itemParams.get('service') === searchParams.get('service')
-
-      return pathMatch && serviceMatch
-    }
-    return pathname.startsWith(item.href)
   }
 
   return (
@@ -86,10 +70,7 @@ export default function DashboardLayout({ children }) {
           <Suspense fallback={<div className="h-full w-full bg-white animate-pulse" />}>
             <NavContent
               navItems={navItems}
-              pathname={pathname}
-              searchParams={searchParams}
               sidebarOpen={sidebarOpen}
-              isActive={isActive}
             />
           </Suspense>
         </nav>
@@ -130,7 +111,24 @@ export default function DashboardLayout({ children }) {
   )
 }
 
-function NavContent({ navItems, pathname, searchParams, sidebarOpen, isActive }) {
+function NavContent({ navItems, sidebarOpen }) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  const isActive = (item) => {
+    if (item.exact) return pathname === item.href
+    if (item.href.includes('?')) {
+      const [path, query] = item.href.split('?')
+      const itemParams = new URLSearchParams(query)
+
+      const pathMatch = pathname === path
+      const serviceMatch = itemParams.get('service') === searchParams.get('service')
+
+      return pathMatch && serviceMatch
+    }
+    return pathname.startsWith(item.href)
+  }
+
   return (
     <>
       {safeArray(navItems).map((item) => (

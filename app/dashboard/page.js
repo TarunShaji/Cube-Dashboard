@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { apiFetch, swrFetcher } from '@/lib/middleware/auth'
@@ -107,7 +107,7 @@ function EditableEmailCell({ value, onSave }) {
   )
 }
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const router = useRouter()
   const { data: clients, mutate, error } = useSWR('/api/clients', swrFetcher)
   const { data: membersData } = useSWR('/api/team', swrFetcher)
@@ -342,5 +342,13 @@ export default function DashboardPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-gray-400">Loading dashboard...</div>}>
+      <DashboardPageContent />
+    </Suspense>
   )
 }

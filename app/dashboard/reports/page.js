@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { apiFetch } from '@/lib/middleware/auth'
 import { safeArray } from '@/lib/safe'
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,7 @@ const typeColors = {
   'Custom': 'bg-gray-50 text-gray-700',
 }
 
-export default function ReportsPage() {
+function ReportsPageContent() {
   const [reports, setReports] = useState([])
   const [clients, setClients] = useState([])
   const [filterClient, setFilterClient] = useState('')
@@ -158,5 +158,13 @@ export default function ReportsPage() {
       </Dialog>
       <ConfirmDialog config={confirmConfig} onClose={() => setConfirmConfig(null)} />
     </div>
+  )
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-gray-400">Loading reports...</div>}>
+      <ReportsPageContent />
+    </Suspense>
   )
 }

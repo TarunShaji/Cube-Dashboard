@@ -46,7 +46,7 @@ import {
 // Shared components imported from @/components/
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-export default function ClientDetailPage() {
+function ClientDetailPageContent() {
   const { id } = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -1577,5 +1577,13 @@ export default function ClientDetailPage() {
       </Dialog>
       <ConfirmDialog config={confirmConfig} onClose={() => setConfirmConfig(null)} />
     </div>
+  )
+}
+
+export default function ClientDetailPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-gray-400">Loading client data...</div>}>
+      <ClientDetailPageContent />
+    </Suspense>
   )
 }

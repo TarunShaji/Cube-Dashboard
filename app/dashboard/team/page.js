@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { apiFetch } from '@/lib/middleware/auth'
 import { safeArray } from '@/lib/safe'
 import { Button } from '@/components/ui/button'
@@ -22,7 +22,7 @@ const roleColors = {
   'Admin': 'bg-gray-100 text-gray-700',
 }
 
-export default function TeamPage() {
+function TeamPageContent() {
   const [members, setMembers] = useState([])
   const [tasks, setTasks] = useState([])
   const [selectedMember, setSelectedMember] = useState('')
@@ -179,5 +179,13 @@ export default function TeamPage() {
 
       <ConfirmDialog config={confirmConfig} onClose={() => setConfirmConfig(null)} />
     </div>
+  )
+}
+
+export default function TeamPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-gray-400">Loading team...</div>}>
+      <TeamPageContent />
+    </Suspense>
   )
 }
