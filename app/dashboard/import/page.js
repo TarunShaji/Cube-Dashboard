@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Upload, CheckCircle, AlertCircle, Loader2, Key, FileText, ListTodo } from 'lucide-react'
 import { rowToContent, getMappedHeaders } from '@/lib/import/content-mapping'
 import { rowToTask, rowToClickUpTask, TASK_PREVIEW_COLS } from '@/lib/import/task-mapping'
+import { rowToEmailTask, EMAIL_PREVIEW_COLS } from '@/lib/import/email-mapping'
+import { rowToPaidTask, PAID_PREVIEW_COLS } from '@/lib/import/paid-mapping'
 
 
 function parseSpreadsheet(text) {
@@ -105,16 +107,35 @@ export default function ImportPage() {
         <h1 className="text-2xl font-bold text-gray-900">Import</h1>
         <p className="text-gray-500 text-sm mt-1">Import tasks or content calendar items from CSV / Google Sheets, or from ClickUp</p>
       </div>
-      <Tabs defaultValue="tasks-csv">
-        <TabsList className="mb-6">
-          <TabsTrigger value="tasks-csv" className="flex items-center gap-1.5"><ListTodo className="w-3.5 h-3.5" />Tasks — CSV</TabsTrigger>
-          <TabsTrigger value="content-csv" className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" />Content Calendar — CSV</TabsTrigger>
-          <TabsTrigger value="clickup-csv" className="flex items-center gap-1.5"><Key className="w-3.5 h-3.5" />ClickUp CSV</TabsTrigger>
-          <TabsTrigger value="clickup" className="flex items-center gap-1.5"><Key className="w-3.5 h-3.5" />ClickUp API</TabsTrigger>
+      <Tabs defaultValue="tasks-csv" className="w-full">
+        <TabsList className="mb-8 p-1.5 bg-gray-100/80 border border-gray-200/50 rounded-xl flex flex-wrap h-auto gap-2 shadow-inner">
+          <TabsTrigger value="tasks-csv" className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md transition-all border border-transparent data-[state=active]:border-blue-100 hover:text-gray-700">
+            <ListTodo className="w-4 h-4" />SEO Tasks
+          </TabsTrigger>
+          <TabsTrigger value="email-csv" className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md transition-all border border-transparent data-[state=active]:border-blue-100 hover:text-gray-700">
+            <ListTodo className="w-4 h-4" />Email Tasks
+          </TabsTrigger>
+          <TabsTrigger value="paid-csv" className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md transition-all border border-transparent data-[state=active]:border-blue-100 hover:text-gray-700">
+            <ListTodo className="w-4 h-4" />Paid Ads Tasks
+          </TabsTrigger>
+          <TabsTrigger value="content-csv" className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md transition-all border border-transparent data-[state=active]:border-blue-100 hover:text-gray-700">
+            <FileText className="w-4 h-4" />Content Calendar
+          </TabsTrigger>
+          <TabsTrigger value="clickup-csv" className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md transition-all border border-transparent data-[state=active]:border-blue-100 hover:text-gray-700">
+            <Key className="w-4 h-4" />ClickUp CSV
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="tasks-csv">
           <TaskCSVImport clients={clients} />
+        </TabsContent>
+
+        <TabsContent value="email-csv">
+          <EmailCSVImport clients={clients} />
+        </TabsContent>
+
+        <TabsContent value="paid-csv">
+          <PaidCSVImport clients={clients} />
         </TabsContent>
 
         <TabsContent value="content-csv">
@@ -123,10 +144,6 @@ export default function ImportPage() {
 
         <TabsContent value="clickup-csv">
           <ClickUpCSVImport clients={clients} />
-        </TabsContent>
-
-        <TabsContent value="clickup">
-          <ClickUpImport clients={clients} members={members} />
         </TabsContent>
       </Tabs>
     </div>
@@ -189,9 +206,25 @@ function ImportShell({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant={!pasteMode ? 'default' : 'outline'} onClick={() => setPasteMode(false)}>Upload CSV</Button>
-            <Button size="sm" variant={pasteMode ? 'default' : 'outline'} onClick={() => setPasteMode(true)}>Paste from Sheets</Button>
+          <div className="flex gap-4">
+            <Button
+              size="lg"
+              variant={!pasteMode ? 'default' : 'outline'}
+              onClick={() => setPasteMode(false)}
+              className={`flex-1 h-12 text-sm font-semibold transition-all ${!pasteMode ? 'shadow-md ring-2 ring-blue-500 ring-offset-2' : ''}`}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Upload CSV
+            </Button>
+            <Button
+              size="lg"
+              variant={pasteMode ? 'default' : 'outline'}
+              onClick={() => setPasteMode(true)}
+              className={`flex-1 h-12 text-sm font-semibold transition-all ${pasteMode ? 'shadow-md ring-2 ring-blue-500 ring-offset-2' : ''}`}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Paste from Sheets
+            </Button>
           </div>
           {parsed?.unsupported && (
             <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-[10px] leading-tight">
@@ -313,30 +346,103 @@ function ImportShell({
   )
 }
 
+
 function FormatGuide({ actionLabel }) {
-  if (actionLabel === 'tasks') return (
-    <Card className="border border-gray-100 bg-gray-50">
-      <CardHeader><CardTitle className="text-sm text-gray-500">Detected Columns</CardTitle></CardHeader>
-      <CardContent className="text-xs text-gray-500 space-y-3">
-        <div>
-          <p className="font-semibold text-gray-700 mb-1">Required</p>
-          <p className="text-gray-600">Task / Task Name / Task Title / Title / Name / To-do / Todo / Action Item / Action Items / Item / Description / Deliverable</p>
+  if (actionLabel === 'seo tasks') return (
+    <Card className="border border-gray-100 bg-white shadow-sm">
+      <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-blue-600">SEO Tasks: Detected Columns</CardTitle></CardHeader>
+      <CardContent className="text-xs text-gray-500 space-y-4">
+        <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Required</p>
+          <p className="text-gray-600 font-medium">Task / Task Name / Task Title / Title / Name / To-do / Todo</p>
         </div>
-        <div>
-          <p className="font-semibold text-gray-700 mb-1">Optional (auto-detected)</p>
-          <ul className="space-y-0.5">
-            <li><span className="font-medium">Status</span> → Work in Progress, Completed, Pending Review, Blocked… (case-insensitive)</li>
-            <li><span className="font-medium">Category / Type / Group / Service / Industry</span> — saved as plain text</li>
-            <li><span className="font-medium">Priority</span> → P0/Urgent, P1/High, P2/Normal (default), P3/Low</li>
-            <li><span className="font-medium">ETA / Due / Deadline / Required by / Timeline</span></li>
-            <li><span className="font-medium">Link / URL / Live Link</span></li>
+        <div className="p-3 border border-gray-100 rounded-lg">
+          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Optional (auto-detected)</p>
+          <ul className="space-y-1.5">
+            <li><span className="font-semibold text-gray-800">Status</span> → To Be Started, In Progress, Completed, Blocked...</li>
+            <li><span className="font-semibold text-gray-800">Category</span> → Type / Group / Service / Industry</li>
+            <li><span className="font-semibold text-gray-800">Priority</span> → P0/Urgent, P1/High, P2/Normal, P3/Low</li>
+            <li><span className="font-semibold text-gray-800">ETA</span> → Due / Deadline / Required by / Timeline</li>
+            <li><span className="font-semibold text-gray-800">Link</span> → URL / Live Link</li>
           </ul>
         </div>
-        <div className="bg-blue-50 border border-blue-100 rounded p-2 text-blue-700">
-          <strong>Assigned To</strong> is not mapped — select the assignee from the dashboard after import.
+        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-blue-700 leading-normal">
+          <strong>Note:</strong> Assigned To is not mapped from the sheet — please select the team member in the dashboard after import.
         </div>
-        <div className="bg-amber-50 border border-amber-100 rounded p-2 text-amber-700">
-          Rows are skipped only when the Task/Title column cannot be found. Unknown columns are logged but not imported.
+      </CardContent>
+    </Card>
+  )
+
+  if (actionLabel === 'email tasks') return (
+    <Card className="border border-gray-100 bg-white shadow-sm">
+      <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-purple-600">Email Tasks: Detected Columns</CardTitle></CardHeader>
+      <CardContent className="text-xs text-gray-500 space-y-4">
+        <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Required</p>
+          <p className="text-gray-600 font-medium">Task / Task Name / Subject / Email Task</p>
+        </div>
+        <div className="p-3 border border-gray-100 rounded-lg">
+          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Optional (auto-detected)</p>
+          <ul className="space-y-1.5">
+            <li><span className="font-semibold text-gray-800">Status</span> → To Be Started, In Progress, Completed...</li>
+            <li><span className="font-semibold text-gray-800">Email Link</span> → Link / Email Link</li>
+            <li><span className="font-semibold text-gray-800">Live Date</span> → Campaign Live / Flow Live / Live Date</li>
+            <li><span className="font-semibold text-gray-800">Live Data</span> → Live Data</li>
+            <li><span className="font-semibold text-gray-800">Internal Appr.</span> → Approved / Pending</li>
+          </ul>
+        </div>
+        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-blue-700 leading-normal">
+          <strong>Note:</strong> Assigned To is not mapped from the sheet — please select the team member in the dashboard after import.
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  if (actionLabel === 'paid tasks') return (
+    <Card className="border border-gray-100 bg-white shadow-sm">
+      <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-orange-600">Paid Ads: Detected Columns</CardTitle></CardHeader>
+      <CardContent className="text-xs text-gray-500 space-y-4">
+        <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Required</p>
+          <p className="text-gray-600 font-medium">Task / Task Name / Ad Set / Paid Ads Task</p>
+        </div>
+        <div className="p-3 border border-gray-100 rounded-lg">
+          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Optional (auto-detected)</p>
+          <ul className="space-y-1.5">
+            <li><span className="font-semibold text-gray-800">Status</span> → To Be Started, In Progress, Completed...</li>
+            <li><span className="font-semibold text-gray-800">Ad Link</span> → Link / Ad Link / Live Link</li>
+            <li><span className="font-semibold text-gray-800">Internal Appr.</span> → Approved / Pending</li>
+          </ul>
+        </div>
+        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-blue-700 leading-normal">
+          <strong>Note:</strong> Assigned To is not mapped from the sheet — please select the team member in the dashboard after import.
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  if (actionLabel === 'content items') return (
+    <Card className="border border-gray-100 bg-white shadow-sm">
+      <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-emerald-600">Content Calendar: Detected Columns</CardTitle></CardHeader>
+      <CardContent className="text-xs text-gray-500 space-y-4">
+        <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Required</p>
+          <p className="text-gray-600 font-medium">Blog Title / Blog Topic / Title / Topic</p>
+        </div>
+        <div className="p-3 border border-gray-100 rounded-lg">
+          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Optional (auto-detected)</p>
+          <ul className="space-y-1.5">
+            <li><span className="font-semibold text-gray-800">Week</span> → Keep as number 1–10</li>
+            <li><span className="font-semibold text-gray-800">Keyword</span> → Primary Keyword / Keywords</li>
+            <li><span className="font-semibold text-gray-800">Writer</span> → Author / Writer</li>
+            <li><span className="font-semibold text-gray-800">Blog Doc</span> → Blog Doc / Blog Document</li>
+            <li><span className="font-semibold text-gray-800">Blog Link</span> → Published Link / Link</li>
+            <li><span className="font-semibold text-gray-800">Date</span> → Normalised to YYYY-MM-DD</li>
+            <li><span className="font-semibold text-gray-800">Status</span> → Draft, In Progress, Sent, Published...</li>
+          </ul>
+        </div>
+        <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-amber-700 leading-normal font-medium">
+          Client Approval and Feedback are NOT imported — they are managed within the dashboard.
         </div>
       </CardContent>
     </Card>
@@ -346,30 +452,7 @@ function FormatGuide({ actionLabel }) {
     <Card className="border border-gray-100 bg-gray-50">
       <CardHeader><CardTitle className="text-sm text-gray-500">Detected Columns</CardTitle></CardHeader>
       <CardContent className="text-xs text-gray-500 space-y-3">
-        <div>
-          <p className="font-semibold text-gray-700 mb-1">Required</p>
-          <p className="text-gray-600">Blog Title / Blog Topic / Title / Topic</p>
-        </div>
-        <div>
-          <p className="font-semibold text-gray-700 mb-1">Optional (auto-detected)</p>
-          <ul className="space-y-0.5">
-            <li><span className="font-medium">Week / Wk</span> — kept as number 1–10</li>
-            <li><span className="font-medium">Keyword / Primary Keyword / Primary Keywords</span></li>
-            <li><span className="font-medium">Writer / Author</span></li>
-            <li><span className="font-medium">Blog Doc / Blog Document / Blog</span></li>
-            <li><span className="font-medium">Blog Link / Link / Published Link / Publishing Link</span></li>
-            <li><span className="font-medium">Published / Published Date / Date of Publication</span> → normalised to YYYY-MM-DD</li>
-            <li><span className="font-medium">Topic Approval / Topic Status</span> → Pending, Approved, Rejected</li>
-            <li><span className="font-medium">Blog Status</span> → Draft, In Progress, Sent, Published...</li>
-            <li><span className="font-medium">Internal Approval / Blog Internal Approval</span> → Pending, Approved</li>
-          </ul>
-        </div>
-        <div className="bg-blue-50 border border-blue-100 rounded p-2 text-blue-700">
-          Client Approval and Feedback are <strong>not imported</strong> — managed via the dashboard after sending links.
-        </div>
-        <div className="bg-amber-50 border border-amber-100 rounded p-2 text-amber-700">
-          Rows are skipped only when the Blog Title column cannot be found.
-        </div>
+        <p>Ensure your header row contains recognizable column names. Unknown columns are ignored.</p>
       </CardContent>
     </Card>
   )
@@ -602,8 +685,228 @@ function TaskCSVImport({ clients }) {
 
   return (
     <ImportShell
-      title="Upload Tasks CSV or Paste from Sheets"
-      actionLabel="tasks"
+      title="Upload SEO Tasks CSV or Paste from Sheets"
+      actionLabel="seo tasks"
+      clients={clients}
+      selectedClient={selectedClient}
+      setSelectedClient={setSelectedClient}
+      rawData={rawData}
+      setRawData={setRawData}
+      parsed={parsed}
+      parseError={parseError}
+      onFile={handleFile}
+      onParse={(text) => doParse(text || rawData)}
+      onImport={handleImport}
+      importing={importing}
+      result={result}
+      setResult={setResult}
+      customPreview={mappedPreview}
+    />
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EMAIL TASK CSV IMPORT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function EmailCSVImport({ clients }) {
+  const [selectedClient, setSelectedClient] = useState('__none__')
+  const [rawData, setRawData] = useState('')
+  const [parsed, setParsed] = useState(null)
+  const [mappedRows, setMappedRows] = useState([])
+  const [parseError, setParseError] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [result, setResult] = useState(null)
+
+  const doParse = (text) => {
+    setParseError('')
+    try {
+      const p = parseSpreadsheet(text)
+      if (!p) { setParseError('Could not parse. Ensure header row is present.'); setParsed(null); setMappedRows([]); return }
+      const mapped = p.rows.map(r => rowToEmailTask(r, p.headers, 'preview')).filter(Boolean)
+      if (mapped.length === 0) {
+        setParsed({ ...p, validCount: 0, unsupported: true, unsupportedMsg: 'No rows with a recognisable "Email Task" or "Subject" column found.' })
+        setMappedRows([])
+        return
+      }
+      setParsed({ ...p, validCount: mapped.length })
+      setMappedRows(mapped)
+    } catch (e) {
+      setParseError('Parse error: ' + (e?.message || 'Unknown error'))
+      setParsed(null); setMappedRows([])
+    }
+  }
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0]; e.target.value = ''
+    if (!file) return
+    try { const text = await file.text(); setRawData(text); doParse(text) }
+    catch (e) { setParseError('Could not read file: ' + (e?.message || '')) }
+  }
+
+  const handleImport = async () => {
+    if (!parsed || selectedClient === '__none__') return
+    setImporting(true); setResult(null)
+    const tasks = safeArray(parsed.rows).map(r => rowToEmailTask(r, parsed.headers, selectedClient)).filter(Boolean)
+    try {
+      const res = await apiFetch('/api/email-tasks/bulk', { method: 'POST', body: JSON.stringify({ tasks }) })
+      let data = {}; try { data = await res.json() } catch (e) { /* ignore */ }
+      if (res.ok) {
+        setResult({ success: data.count ?? tasks.length, failed: data.failed ?? 0, total: tasks.length, errors: safeArray(data.errors) })
+        setParsed(null); setMappedRows([]); setRawData('')
+      } else { setResult({ success: 0, failed: tasks.length, total: tasks.length, error: data.error || `Server error (${res.status})` }) }
+    } catch (e) { setResult({ success: 0, failed: 0, total: 0, error: 'Network error: ' + (e?.message || 'Could not reach server') }) }
+    finally { setImporting(false) }
+  }
+
+  const mappedPreview = mappedRows.length > 0 && (
+    <Card className="border border-gray-200">
+      <CardHeader>
+        <CardTitle className="text-base">
+          Preview <span className="text-xs font-normal text-gray-400">({mappedRows.length} rows)</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-auto max-h-80">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-gray-50 border-b">
+                {EMAIL_PREVIEW_COLS.map(c => (
+                  <th key={c.field} className="px-3 py-2 text-left font-semibold text-gray-600 whitespace-nowrap">{c.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {mappedRows.slice(0, 8).map((row, i) => (
+                <tr key={i} className="hover:bg-gray-50">
+                  {EMAIL_PREVIEW_COLS.map(c => (
+                    <td key={c.field} className="px-3 py-1.5 text-gray-700 max-w-[200px] truncate" title={String(row[c.field] || '')}>
+                      {String(row[c.field] ?? '') || <span className="text-gray-300 italic">—</span>}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  return (
+    <ImportShell
+      title="Upload Email Tasks CSV or Paste from Sheets"
+      actionLabel="email tasks"
+      clients={clients}
+      selectedClient={selectedClient}
+      setSelectedClient={setSelectedClient}
+      rawData={rawData}
+      setRawData={setRawData}
+      parsed={parsed}
+      parseError={parseError}
+      onFile={handleFile}
+      onParse={(text) => doParse(text || rawData)}
+      onImport={handleImport}
+      importing={importing}
+      result={result}
+      setResult={setResult}
+      customPreview={mappedPreview}
+    />
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAID ADS TASK CSV IMPORT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function PaidCSVImport({ clients }) {
+  const [selectedClient, setSelectedClient] = useState('__none__')
+  const [rawData, setRawData] = useState('')
+  const [parsed, setParsed] = useState(null)
+  const [mappedRows, setMappedRows] = useState([])
+  const [parseError, setParseError] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [result, setResult] = useState(null)
+
+  const doParse = (text) => {
+    setParseError('')
+    try {
+      const p = parseSpreadsheet(text)
+      if (!p) { setParseError('Could not parse. Ensure header row is present.'); setParsed(null); setMappedRows([]); return }
+      const mapped = p.rows.map(r => rowToPaidTask(r, p.headers, 'preview')).filter(Boolean)
+      if (mapped.length === 0) {
+        setParsed({ ...p, validCount: 0, unsupported: true, unsupportedMsg: 'No rows with a recognisable "Paid Ads Task" or "Ad Set" column found.' })
+        setMappedRows([])
+        return
+      }
+      setParsed({ ...p, validCount: mapped.length })
+      setMappedRows(mapped)
+    } catch (e) {
+      setParseError('Parse error: ' + (e?.message || 'Unknown error'))
+      setParsed(null); setMappedRows([])
+    }
+  }
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0]; e.target.value = ''
+    if (!file) return
+    try { const text = await file.text(); setRawData(text); doParse(text) }
+    catch (e) { setParseError('Could not read file: ' + (e?.message || '')) }
+  }
+
+  const handleImport = async () => {
+    if (!parsed || selectedClient === '__none__') return
+    setImporting(true); setResult(null)
+    const tasks = safeArray(parsed.rows).map(r => rowToPaidTask(r, parsed.headers, selectedClient)).filter(Boolean)
+    try {
+      const res = await apiFetch('/api/paid-tasks/bulk', { method: 'POST', body: JSON.stringify({ tasks }) })
+      let data = {}; try { data = await res.json() } catch (e) { /* ignore */ }
+      if (res.ok) {
+        setResult({ success: data.count ?? tasks.length, failed: data.failed ?? 0, total: tasks.length, errors: safeArray(data.errors) })
+        setParsed(null); setMappedRows([]); setRawData('')
+      } else { setResult({ success: 0, failed: tasks.length, total: tasks.length, error: data.error || `Server error (${res.status})` }) }
+    } catch (e) { setResult({ success: 0, failed: 0, total: 0, error: 'Network error: ' + (e?.message || 'Could not reach server') }) }
+    finally { setImporting(false) }
+  }
+
+  const mappedPreview = mappedRows.length > 0 && (
+    <Card className="border border-gray-200">
+      <CardHeader>
+        <CardTitle className="text-base">
+          Preview <span className="text-xs font-normal text-gray-400">({mappedRows.length} rows)</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-auto max-h-80">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-gray-50 border-b">
+                {PAID_PREVIEW_COLS.map(c => (
+                  <th key={c.field} className="px-3 py-2 text-left font-semibold text-gray-600 whitespace-nowrap">{c.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {mappedRows.slice(0, 8).map((row, i) => (
+                <tr key={i} className="hover:bg-gray-50">
+                  {PAID_PREVIEW_COLS.map(c => (
+                    <td key={c.field} className="px-3 py-1.5 text-gray-700 max-w-[200px] truncate" title={String(row[c.field] || '')}>
+                      {String(row[c.field] ?? '') || <span className="text-gray-300 italic">—</span>}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  return (
+    <ImportShell
+      title="Upload Paid Ads Tasks CSV or Paste from Sheets"
+      actionLabel="paid tasks"
       clients={clients}
       selectedClient={selectedClient}
       setSelectedClient={setSelectedClient}
@@ -755,161 +1058,5 @@ function ContentCSVImport({ clients }) {
       setResult={setResult}
       customPreview={mappedPreview}
     />
-  )
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// CLICKUP IMPORT (unchanged, just error-hardened)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function ClickUpImport({ clients, members }) {
-  const [apiToken, setApiToken] = useState('')
-  const [tokenSaved, setTokenSaved] = useState(false)
-  const [workspaces, setWorkspaces] = useState([])
-  const [selectedWS, setSelectedWS] = useState('__none__')
-  const [lists, setLists] = useState([])
-  const [selectedLists, setSelectedLists] = useState([])
-  const [selectedClient, setSelectedClient] = useState('__none__')
-  const [loadingWS, setLoadingWS] = useState(false)
-  const [loadingLists, setLoadingLists] = useState(false)
-  const [importing, setImporting] = useState(false)
-  const [importLog, setImportLog] = useState([])
-  const [result, setResult] = useState(null)
-  const [error, setError] = useState('')
-
-  const log = (msg) => setImportLog(l => [...l, msg])
-
-  const fetchWorkspaces = async () => {
-    if (!apiToken.trim()) { setError('Please enter your ClickUp API token'); return }
-    setError(''); setLoadingWS(true)
-    try {
-      const res = await apiFetch('/api/clickup/workspaces', { method: 'POST', body: JSON.stringify({ token: apiToken }) })
-      let data = {}; try { data = await res.json() } catch (e) { /* ignore */ }
-      if (!res.ok) { setError(data.error || 'Failed to fetch workspaces'); return }
-      setWorkspaces(safeArray(data.workspaces)); setTokenSaved(true)
-    } catch (e) { setError('Network error: ' + (e?.message || 'Could not connect')) }
-    finally { setLoadingWS(false) }
-  }
-
-  const fetchLists = async (wsId) => {
-    setSelectedWS(wsId); setLists([]); setSelectedLists([])
-    if (wsId === '__none__') return
-    setLoadingLists(true)
-    try {
-      const res = await apiFetch('/api/clickup/lists', { method: 'POST', body: JSON.stringify({ token: apiToken, workspace_id: wsId }) })
-      let data = {}; try { data = await res.json() } catch (e) { /* ignore */ }
-      if (!res.ok) { setError(data.error || 'Failed to fetch lists'); return }
-      setLists(safeArray(data.lists))
-    } catch (e) { setError('Network error: ' + (e?.message || 'Could not fetch lists')) }
-    finally { setLoadingLists(false) }
-  }
-
-  const toggleList = (id) => setSelectedLists(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
-
-  const runImport = async () => {
-    if (selectedLists.length === 0 || selectedClient === '__none__') return
-    setImporting(true); setResult(null); setImportLog([]); setError('')
-    log(`Starting import of ${selectedLists.length} list(s)...`)
-    try {
-      const res = await apiFetch('/api/clickup/import', { method: 'POST', body: JSON.stringify({ token: apiToken, list_ids: selectedLists, client_id: selectedClient, members }) })
-      let data = {}; try { data = await res.json() } catch (e) { /* ignore */ }
-      if (!res.ok) { setError(data.error || 'Import failed'); return }
-      setResult(data)
-      log(`✅ Done! ${data.imported ?? 0} tasks imported, ${data.skipped ?? 0} skipped.`)
-    } catch (e) { setError('Network error: ' + (e?.message || '')); log('❌ Import failed') }
-    finally { setImporting(false) }
-  }
-
-  return (
-    <div className="space-y-6">
-      {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
-          <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600 text-xs underline">Dismiss</button>
-        </div>
-      )}
-      {result && (
-        <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <CheckCircle className="w-5 h-5 text-green-600" />
-          <div>
-            <p className="font-semibold text-gray-900">Import Complete!</p>
-            <p className="text-sm text-gray-600">{result.imported ?? 0} tasks imported · {result.skipped ?? 0} already existed</p>
-          </div>
-          <Button size="sm" variant="outline" onClick={() => { setResult(null); setSelectedLists([]) }} className="ml-auto">Import More</Button>
-        </div>
-      )}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border border-gray-200">
-          <CardHeader><CardTitle className="text-base flex items-center gap-2"><Key className="w-4 h-4" />Step 1: ClickUp API Token</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-xs text-gray-500">ClickUp → <b>Settings</b> → <b>Apps</b> → <b>API Token</b></p>
-            <div className="flex gap-2">
-              <Input type="password" value={apiToken} onChange={e => { setApiToken(e.target.value); setTokenSaved(false); setWorkspaces([]); setLists([]) }} placeholder="pk_xxxxxxxxxxxxxxxxxxxx" className="font-mono text-sm" />
-              <Button onClick={fetchWorkspaces} disabled={loadingWS || !apiToken.trim()} className="flex-shrink-0">
-                {loadingWS ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Connect'}
-              </Button>
-            </div>
-            {tokenSaved && <p className="text-xs text-green-600 flex items-center gap-1"><CheckCircle className="w-3 h-3" />Connected — {workspaces.length} workspace(s) found</p>}
-          </CardContent>
-        </Card>
-
-        <Card className={`border ${!tokenSaved ? 'border-gray-100 opacity-60' : 'border-gray-200'}`}>
-          <CardHeader><CardTitle className="text-base">Step 2: Select Workspace &amp; Lists</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <Select value={selectedWS} onValueChange={fetchLists} disabled={!tokenSaved}>
-              <SelectTrigger><SelectValue placeholder="Choose workspace" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Choose workspace…</SelectItem>
-                {safeArray(workspaces).map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {loadingLists && <div className="flex items-center gap-2 text-xs text-gray-400"><Loader2 className="w-3 h-3 animate-spin" />Fetching lists...</div>}
-            {lists.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-gray-600 mb-2">Select lists ({selectedLists.length} selected):</p>
-                <div className="space-y-1 max-h-48 overflow-y-auto">
-                  {safeArray(lists).map(l => (
-                    <label key={l.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer">
-                      <input type="checkbox" checked={selectedLists.includes(l.id)} onChange={() => toggleList(l.id)} className="rounded" />
-                      <span className="text-sm text-gray-700">{l?.name}</span>
-                      <span className="text-xs text-gray-400 ml-auto">{l?.space_name}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className={`border ${selectedLists.length === 0 ? 'border-gray-100 opacity-60' : 'border-gray-200'}`}>
-          <CardHeader><CardTitle className="text-base">Step 3: Map to Client</CardTitle></CardHeader>
-          <CardContent>
-            <p className="text-xs text-gray-500 mb-3">Which client should these tasks be imported into?</p>
-            <Select value={selectedClient} onValueChange={setSelectedClient} disabled={selectedLists.length === 0}>
-              <SelectTrigger><SelectValue placeholder="Select client" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Select client…</SelectItem>
-                {safeArray(clients).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        <Card className={`border ${(selectedLists.length === 0 || selectedClient === '__none__') ? 'border-gray-100 opacity-60' : 'border-blue-200 bg-blue-50'}`}>
-          <CardHeader><CardTitle className="text-base">Step 4: Run Import</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-xs text-gray-500">{selectedLists.length} list(s) → {clients.find(c => c.id === selectedClient)?.name || '—'}</p>
-            <Button className="w-full" onClick={runImport} disabled={importing || selectedLists.length === 0 || selectedClient === '__none__'}>
-              {importing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing from ClickUp...</> : 'Start Import'}
-            </Button>
-            {importLog.length > 0 && (
-              <div className="bg-gray-900 rounded p-3 text-xs text-green-400 font-mono space-y-1 max-h-24 overflow-y-auto">
-                {safeArray(importLog).map((l, i) => <div key={i}>{l}</div>)}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
   )
 }

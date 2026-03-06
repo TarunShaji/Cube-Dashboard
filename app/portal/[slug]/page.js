@@ -29,7 +29,7 @@ const APPROVAL_OPTIONS = APPROVALS
 const TOPIC_APPROVAL_OPTIONS = TOPIC_APPROVALS
 const BLOG_APPROVAL_OPTIONS = BLOG_APPROVALS
 
-function ApprovalButton({ taskId, current, slug, portalPassword, disabled, onUpdate }) {
+function ApprovalButton({ taskId, current, slug, portalPassword, disabled, service, onUpdate }) {
   const [loading, setLoading] = useState(false)
   const [showNote, setShowNote] = useState(false)
   const [note, setNote] = useState('')
@@ -59,7 +59,8 @@ function ApprovalButton({ taskId, current, slug, portalPassword, disabled, onUpd
         headers,
         body: JSON.stringify({
           client_approval: choice,
-          client_feedback_note: feedbackNote
+          client_feedback_note: feedbackNote,
+          service: service || 'seo'
         }),
       })
       if (res.ok) {
@@ -270,6 +271,7 @@ export default function ClientPortalPage() {
   const [showAddResource, setShowAddResource] = useState(false)
   const [resourceForm, setResourceForm] = useState({ name: '', url: '' })
   const [addingResource, setAddingResource] = useState(false)
+  const [portalService, setPortalService] = useState('seo')
 
   const portalFetcher = async ([url, slug, pwd]) => {
     const headers = { 'Content-Type': 'application/json' }
@@ -313,6 +315,15 @@ export default function ClientPortalPage() {
       setPasswordError('Incorrect password')
     }
   }, [swrErr, portalPassword])
+
+  useEffect(() => {
+    if (client?.service_type) {
+      const srv = client.service_type.toLowerCase()
+      if (srv.includes('email')) setPortalService('email')
+      else if (srv.includes('paid')) setPortalService('paid')
+      else setPortalService('seo')
+    }
+  }, [client])
 
   const handleUpdate = (type, id, field, val) => {
     mutate(['/api/portal', slug, portalPassword], (current) => {
@@ -393,21 +404,24 @@ export default function ClientPortalPage() {
   if (!data) return null
 
   // data is already destructured into client and reports above
-  const completed = safeArray(tasks).filter(t => t?.status === 'Completed').length
-  const progress = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0
-  const approved = safeArray(tasks).filter(t => t?.client_approval === 'Approved').length
-  const changes = safeArray(tasks).filter(t => t?.client_approval === 'Required Changes').length
-  const pending = safeArray(tasks).filter(t => !t?.client_approval || t?.client_approval === 'Pending Review').length
+  const currentTasks = safeArray(tasks).filter(t => t.service === portalService)
+  const completed = currentTasks.filter(t => t?.status === 'Completed').length
+  const progress = currentTasks.length > 0 ? Math.round((completed / currentTasks.length) * 100) : 0
+  const approved = currentTasks.filter(t => t?.client_approval === 'Approved').length
+  const changes = currentTasks.filter(t => t?.client_approval === 'Required Changes').length
+  const pending = currentTasks.filter(t => !t?.client_approval || t?.client_approval === 'Pending Review').length
 
-  const byCategory = safeArray(tasks).reduce((acc, task) => {
-    const cat = task?.category || 'Other'
+  const filteredTasks = currentTasks
+
+  const byCategory = filteredTasks.reduce((acc, task) => {
+    const cat = task?.category || (task?.service === 'email' ? 'Email Campaign' : task?.service === 'paid' ? 'Paid Campaign' : 'Other')
     if (!acc[cat]) acc[cat] = []
     acc[cat].push(task)
     return acc
   }, {})
 
-  const lastUpdated = safeArray(tasks).length > 0
-    ? new Date(Math.max(...safeArray(tasks).map(t => new Date(t?.updated_at || t?.created_at)))).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const lastUpdated = currentTasks.length > 0
+    ? new Date(Math.max(...currentTasks.map(t => new Date(t?.updated_at || t?.created_at)))).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null
 
   return (
@@ -433,8 +447,8 @@ export default function ClientPortalPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="md:col-span-3 bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-gray-700">Overall Progress</h2>
-              <span className="text-sm text-gray-500">{completed}/{tasks.length} completed</span>
+              <h2 className="text-sm font-semibold text-gray-700">{portalService === 'email' ? 'Email' : portalService === 'paid' ? 'Paid Ads' : 'SEO'} Progress</h2>
+              <span className="text-sm text-gray-500">{completed}/{currentTasks.length} completed</span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-3">
               <div className="h-3 rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: 'linear-gradient(90deg,#3b82f6,#1d4ed8)' }} />
@@ -478,14 +492,29 @@ export default function ClientPortalPage() {
 
           {/* ── Progress Tab ────────────────────────────────────────────── */}
           <TabsContent value="progress">
-            {/* Legend */}
-            <div className="flex items-center gap-4 mb-4 px-1">
-              <p className="text-xs text-gray-500 mr-2">Your approval:</p>
-              {[['Approved', 'bg-green-500'], ['Required Changes', 'bg-red-500'], ['Pending Review', 'bg-gray-300']].map(([l, c]) => (
-                <span key={l} className="flex items-center gap-1 text-xs text-gray-500">
-                  <span className={`w-2 h-2 rounded-full ${c}`} />{l}
-                </span>
-              ))}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 px-1">
+              <div className="flex items-center gap-4">
+                <p className="text-xs text-gray-500 mr-2">Your approval:</p>
+                {[['Approved', 'bg-green-500'], ['Required Changes', 'bg-red-500'], ['Pending Review', 'bg-gray-300']].map(([l, c]) => (
+                  <span key={l} className="flex items-center gap-1 text-xs text-gray-500">
+                    <span className={`w-2 h-2 rounded-full ${c}`} />{l}
+                  </span>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-500">Service:</span>
+                <Select value={portalService} onValueChange={setPortalService}>
+                  <SelectTrigger className="h-8 w-[140px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="seo" className="text-xs">SEO Tasks</SelectItem>
+                    <SelectItem value="email" className="text-xs">Email Tasks</SelectItem>
+                    <SelectItem value="paid" className="text-xs">Paid Ads Tasks</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {Object.keys(byCategory).length === 0 ? (
@@ -510,7 +539,7 @@ export default function ClientPortalPage() {
                             <tr className="bg-gray-50">
                               <th className="text-left px-5 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.title }}>Task</th>
                               <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.status }}>Status</th>
-                              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.eta }}>ETA End</th>
+                              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.eta }}>{portalService === 'email' ? 'Campaign Live' : 'ETA End'}</th>
                               <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.client_feedback || '200px' }}>Notes</th>
                               <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.link }}>Link</th>
                               <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.client_approval }}>Your Approval</th>
@@ -525,7 +554,7 @@ export default function ClientPortalPage() {
                                     {task?.status}
                                   </span>
                                 </td>
-                                <td className="px-4 py-4 text-xs text-gray-500 truncate">{task?.eta_end || '—'}</td>
+                                <td className="px-4 py-4 text-xs text-gray-500 truncate">{task?.eta_end || task?.campaign_live || '—'}</td>
                                 <td className="px-4 py-4 text-xs text-gray-500 truncate" title={task?.client_approval === 'Required Changes' ? task?.client_feedback_note : (task?.remarks || '')}>
                                   {task?.client_approval === 'Required Changes' ? task?.client_feedback_note : (task?.remarks || '—')}
                                 </td>
@@ -548,6 +577,7 @@ export default function ClientPortalPage() {
                                     slug={slug}
                                     portalPassword={portalPassword}
                                     disabled={!task?.client_link_visible}
+                                    service={task?.service}
                                     onUpdate={handleApprovalUpdate}
                                   />
                                 </td>

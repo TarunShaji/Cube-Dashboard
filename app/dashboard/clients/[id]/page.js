@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { EditableCell } from '@/components/table/EditableCell'
 import { LinkCell } from '@/components/table/LinkCell'
-import { Plus, ExternalLink, Trash2, Link2, Settings, BarChart3, FileText, GripVertical, GripHorizontal, Folder, Image, Library, Search } from 'lucide-react'
+import { Plus, ExternalLink, Trash2, Link2, Settings, BarChart3, FileText, GripVertical, GripHorizontal, Folder, Image, Library, Search, Mail, TrendingUp, FolderOpen } from 'lucide-react'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import {
   DndContext,
@@ -40,7 +40,7 @@ import {
   STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, CONTENT_INTERNAL_APPROVALS, REPORT_TYPES, SERVICE_TYPES,
   OUTLINE_STATUSES, TOPIC_APPROVALS, BLOG_APPROVALS, BLOG_STATUSES, INTERN_STATUSES,
   statusColors, priorityColors, approvalColors, topicApprovalColors, blogStatusColors, internalApprovalColors, internStatusColors,
-  TASK_COLUMN_WIDTHS, CONTENT_COLUMN_WIDTHS
+  TASK_COLUMN_WIDTHS, CONTENT_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS
 } from '@/lib/constants'
 
 // Shared components imported from @/components/
@@ -57,7 +57,36 @@ export default function ClientDetailPage() {
   const tAssignee = searchParams.get('assigned_to') || 'all'
   const tPriority = searchParams.get('priority') || 'all'
   const tSearch = searchParams.get('search') || ''
+  const tService = searchParams.get('service') || 'seo'
   const tPage = parseInt(searchParams.get('page')) || 1
+
+  const getServiceConfig = (srv) => {
+    switch (srv) {
+      case 'email':
+        return {
+          endpoint: '/api/email-tasks',
+          label: 'Email Tasks',
+          columns: ['selection', 'title', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'campaign_live', 'live_data', 'client_approval', 'client_feedback', 'actions'],
+          widths: EMAIL_COLUMN_WIDTHS
+        }
+      case 'paid':
+        return {
+          endpoint: '/api/paid-tasks',
+          label: 'Paid Ads Tasks',
+          columns: ['selection', 'title', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          widths: PAID_COLUMN_WIDTHS
+        }
+      default:
+        return {
+          endpoint: '/api/tasks',
+          label: 'SEO Tasks',
+          columns: ['selection', 'title', 'category', 'status', 'priority', 'eta', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          widths: TASK_COLUMN_WIDTHS
+        }
+    }
+  }
+
+  const serviceConfig = useMemo(() => getServiceConfig(tService), [tService])
 
   // --- Content State (from URL - prefixed with c_) ---
   const cStatus = searchParams.get('c_status') || 'all'
@@ -76,8 +105,6 @@ export default function ClientDetailPage() {
       if (value === 'all' || value === '') params.delete(key)
       else params.set(key, value)
     })
-    // Reset page if filters change (optional but often expected)
-    // For now keep it simple.
     router.push(`/dashboard/clients/${id}?${params.toString()}`, { scroll: false })
   }
 
@@ -106,7 +133,7 @@ export default function ClientDetailPage() {
   contentParams.set('limit', '50')
 
   const { data: client, mutate: mutateClient, error: clientErr } = useSWR(id ? `/api/clients/${id}` : null, swrFetcher)
-  const { data: tasks, mutate: mutateTasks } = useSWR(id ? `/api/tasks?${taskParams.toString()}` : null, swrFetcher)
+  const { data: tasks, mutate: mutateTasks } = useSWR(id ? `${serviceConfig.endpoint}?${taskParams.toString()}` : null, swrFetcher)
   const { data: reports, mutate: mutateReports } = useSWR(id ? `/api/reports?client_id=${id}` : null, swrFetcher)
   const { data: content, mutate: mutateContent } = useSWR(id ? `/api/content?${contentParams.toString()}` : null, swrFetcher)
   const { data: resources, mutate: mutateResources } = useSWR(id ? `/api/clients/${id}/resources` : null, swrFetcher)
@@ -156,12 +183,17 @@ export default function ClientDetailPage() {
   const addContentInputRef = useRef(null)
 
   useEffect(() => {
-    const savedTasks = localStorage.getItem('client_tasks_col_order_v2')
+    const savedTasks = localStorage.getItem(`client_tasks_col_order_${tService}`)
     const parsedTasks = safeJSON(savedTasks)
     if (parsedTasks && Array.isArray(parsedTasks)) {
-      setTaskColOrder(parsedTasks.filter(c => c !== 'client').includes('selection') ? parsedTasks.filter(c => c !== 'client') : ['selection', ...parsedTasks.filter(c => c !== 'selection' && c !== 'client')])
+      const currentCols = serviceConfig.columns
+      const merged = parsedTasks.filter(id => currentCols.includes(id))
+      currentCols.forEach(id => {
+        if (!merged.includes(id)) merged.push(id)
+      })
+      setTaskColOrder(merged)
     } else {
-      setTaskColOrder(['selection', 'title', 'category', 'status', 'priority', 'eta', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'])
+      setTaskColOrder(serviceConfig.columns)
     }
 
     // Always nuke old stale orders
@@ -183,7 +215,7 @@ export default function ClientDetailPage() {
     } else {
       setContentColOrder(defaultContentCols)
     }
-  }, [])
+  }, [tService, serviceConfig.columns])
   const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || ''
 
   useEffect(() => {
@@ -200,7 +232,7 @@ export default function ClientDetailPage() {
     mutateTasks({ ...(tasks || {}), data: optimistic, items: optimistic }, false)
 
     try {
-      const res = await apiFetch(`/api/tasks/${taskId}`, {
+      const res = await apiFetch(`${serviceConfig.endpoint}/${taskId}`, {
         method: 'PUT',
         body: JSON.stringify({
           [field]: value,
@@ -225,10 +257,10 @@ export default function ClientDetailPage() {
   }
 
   const publishTask = async (taskId) => {
-    const task = safeArray(tasks).find(t => t.id === taskId)
+    const task = safeArray(tasks?.data || tasks).find(t => t.id === taskId)
     setSaving(s => ({ ...s, [taskId]: true }))
     try {
-      const res = await apiFetch(`/api/tasks/${taskId}/publish`, {
+      const res = await apiFetch(`${serviceConfig.endpoint}/${taskId}/publish`, {
         method: 'POST',
         body: JSON.stringify({ updated_at: task?.updated_at })
       })
@@ -239,7 +271,7 @@ export default function ClientDetailPage() {
       } else {
         const data = await res.json()
         if (data.task) {
-          mutateTasks(safeArray(tasks).map(t => t.id === taskId ? data.task : t), false)
+          mutateTasks({ ...tasks, data: safeArray(tasks?.data || tasks).map(t => t.id === taskId ? data.task : t) }, false)
         }
       }
     } catch (e) {
@@ -276,7 +308,7 @@ export default function ClientDetailPage() {
   const addTask = async () => {
     if (!newTask.title.trim()) return
     setAddingTask(true)
-    const res = await apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify({ ...newTask, client_id: id }) })
+    const res = await apiFetch(serviceConfig.endpoint, { method: 'POST', body: JSON.stringify({ ...newTask, client_id: id }) })
     if (res.ok) {
       setNewTask({ title: '' })
       mutateTasks()
@@ -289,7 +321,7 @@ export default function ClientDetailPage() {
       title: 'Delete Task',
       description: 'This will permanently delete the task. This cannot be undone.',
       onConfirm: async () => {
-        await apiFetch(`/api/tasks/${taskId}`, { method: 'DELETE' })
+        await apiFetch(`${serviceConfig.endpoint}/${taskId}`, { method: 'DELETE' })
         setSelectedTasks(prev => {
           const next = new Set(prev)
           next.delete(taskId)
@@ -308,7 +340,9 @@ export default function ClientDetailPage() {
       onConfirm: async () => {
         setBulkDeleting(true)
         try {
-          const res = await apiFetch('/api/tasks/bulk', {
+          // Bulk delete should also use service endpoint 
+          const bulkDeleteUrl = tService === 'seo' ? '/api/tasks/bulk' : `${serviceConfig.endpoint}/bulk`
+          const res = await apiFetch(bulkDeleteUrl, {
             method: 'DELETE',
             body: JSON.stringify({ ids: Array.from(selectedTasks) })
           })
@@ -366,12 +400,13 @@ export default function ClientDetailPage() {
     setSettingsError('')
     // Only send fields accepted by ClientSchema — strip forbidden fields
     // (id, slug, is_active, _id, created_at, updated_at etc. cause a 400)
-    const { name, service_type, portal_password, npl_member_id, tpl_member_id, cpl_member_id } = settingsForm
+    const { name, service_type, portal_password, npl_member_id, tpl_member_id, cpl_member_id, email } = settingsForm
     const payload = { name, service_type }
     if (portal_password) payload.portal_password = portal_password
     if (npl_member_id !== undefined) payload.npl_member_id = npl_member_id
     if (tpl_member_id !== undefined) payload.tpl_member_id = tpl_member_id
     if (cpl_member_id !== undefined) payload.cpl_member_id = cpl_member_id
+    if (email !== undefined) payload.email = email
 
     try {
       const res = await apiFetch(`/api/clients/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
@@ -545,7 +580,7 @@ export default function ClientDetailPage() {
   const progress = useMemo(() => allTasks.length > 0 ? Math.round((completedTasks / allTasks.length) * 100) : 0, [allTasks.length, completedTasks])
   const memberMap = useMemo(() => Object.fromEntries(allMembers.map(m => [m?.id, m?.name])), [allMembers])
   const approvalCount = useMemo(() => allTasks.filter(t => t?.client_approval === 'Approved').length, [allTasks])
-  const changesCount = useMemo(() => allTasks.filter(t => t?.client_approval === 'Required Changes').length, [allTasks])
+  const changesCount = useMemo(() => allTasks.filter(t => t?.client_approval === 'Required Changes' || t?.client_approval === 'Changes Required').length, [allTasks])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -562,7 +597,8 @@ export default function ClientDetailPage() {
       mutateTasks({ ...tasks, data: reordered }, false)
 
       try {
-        await apiFetch('/api/tasks/reorder', {
+        const reorderUrl = tService === 'seo' ? '/api/tasks/reorder' : `${serviceConfig.endpoint}/reorder`
+        await apiFetch(reorderUrl, {
           method: 'PUT',
           body: JSON.stringify({ ids: reordered.map(t => t.id) })
         })
@@ -580,7 +616,7 @@ export default function ClientDetailPage() {
         const oldIndex = items.indexOf(active.id)
         const newIndex = items.indexOf(over.id)
         const updated = arrayMove(items, oldIndex, newIndex)
-        localStorage.setItem('client_tasks_col_order_v2', JSON.stringify(updated))
+        localStorage.setItem(`client_tasks_col_order_${tService}`, JSON.stringify(updated))
         return updated
       })
     }
@@ -626,7 +662,7 @@ export default function ClientDetailPage() {
   // --- Sortable Components ---
   const SortableHeader = ({ id, label, sortField: sField, handleSort, type = 'task' }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: id || 'header' })
-    const widths = type === 'task' ? TASK_COLUMN_WIDTHS : CONTENT_COLUMN_WIDTHS
+    const widths = type === 'task' ? serviceConfig.widths : CONTENT_COLUMN_WIDTHS
     const isContent = type === 'content'
     const isSticky = (isContent && (id === 'title' || id === 'week' || id === 'serial')) || (!isContent && (id === 'title' || id === 'serial' || id === 'selection'))
 
@@ -636,13 +672,15 @@ export default function ClientDetailPage() {
       ? (id === 'serial' ? '0px' : id === 'week' ? '40px' : '120px')
       : (id === 'serial' ? '0px' : id === 'selection' ? '40px' : '100px')
 
+    const currentWidth = id === 'serial' ? '40px' : (widths[id] || 'auto')
+
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
       zIndex: isDragging ? 30 : (isSticky ? 20 : 0),
-      width: widths[id] || 'auto',
-      minWidth: widths[id] || 'auto',
-      ...(isSticky ? { position: 'sticky', left: leftPos, background: '#f9fafb', borderRight: '1px solid #f3f4f6', boxShadow: id === 'title' ? '4px 0 8px -4px rgba(0,0,0,0.1)' : '' } : {})
+      width: currentWidth,
+      minWidth: currentWidth,
+      ...(isSticky ? { position: 'sticky', left: leftPos, background: '#f9fafb', zIndex: 25, borderRight: '1px solid #f3f4f6', boxShadow: id === 'title' ? '4px 0 8px -4px rgba(0,0,0,0.1)' : '' } : {})
     }
 
     const isTask = type === 'task'
@@ -693,9 +731,10 @@ export default function ClientDetailPage() {
             borderRight: '1px solid #f3f4f6',
             boxShadow: colId === 'title' ? '4px 0 8px -4px rgba(0,0,0,0.1)' : ''
           } : {}
+          const currentWidth = serviceConfig.widths[colId]
           return (
             <td key={colId} className={`px-3 py-1.5 overflow-hidden ${!isTaskSticky && (colId === 'internal_approval' || colId === 'send_link') ? 'bg-gray-50/50' : ''}`}
-              style={{ width: TASK_COLUMN_WIDTHS[colId], minWidth: TASK_COLUMN_WIDTHS[colId], ...taskStickyStyle }}>
+              style={{ width: currentWidth, minWidth: currentWidth, ...taskStickyStyle }}>
               {colId === 'selection' && (
                 <div className="flex items-center justify-center">
                   <input
@@ -706,56 +745,66 @@ export default function ClientDetailPage() {
                   />
                 </div>
               )}
-              {colId === 'title' && (
-                <div className="flex items-center gap-2">
-                  <div {...attributes} {...listeners} className="cursor-grab text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                    <GripVertical className="w-3 h-3" />
+              {
+                colId === 'title' && (
+                  <div className="flex items-center gap-2">
+                    <div {...attributes} {...listeners} className="cursor-grab text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                      <GripVertical className="w-3 h-3" />
+                    </div>
+                    {saving[task.id] && <div className="w-1 h-1 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />}
+                    <EditableCell value={task.title} onSave={v => updateTask(task.id, 'title', v)} />
                   </div>
-                  {saving[task.id] && <div className="w-1 h-1 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />}
-                  <EditableCell value={task.title} onSave={v => updateTask(task.id, 'title', v)} />
-                </div>
-              )}
+                )
+              }
               {colId === 'category' && <EditableCell value={task.category} type="select" options={CATEGORIES} onSave={v => updateTask(task.id, 'category', v)} />}
               {colId === 'status' && <EditableCell value={task.status} type="status" options={STATUSES} onSave={v => updateTask(task.id, 'status', v)} />}
               {colId === 'priority' && <EditableCell value={task.priority} type="priority" options={PRIORITIES} onSave={v => updateTask(task.id, 'priority', v)} />}
               {colId === 'eta' && <EditableCell value={task.eta_end} type="date" onSave={v => updateTask(task.id, 'eta_end', v)} />}
-              {colId === 'assigned' && (
-                <EditableCell
-                  value={memberMap[task.assigned_to] || ''}
-                  type="select"
-                  options={allMembers.map(m => m.name)}
-                  onSave={v => {
-                    const member = allMembers.find(m => m.name === v)
-                    updateTask(task.id, 'assigned_to', member?.id || null)
-                  }}
-                />
-              )}
+              {
+                colId === 'assigned' && (
+                  <EditableCell
+                    value={memberMap[task.assigned_to] || ''}
+                    type="select"
+                    options={allMembers.map(m => m.name)}
+                    onSave={v => {
+                      const member = allMembers.find(m => m.name === v)
+                      updateTask(task.id, 'assigned_to', member?.id || null)
+                    }}
+                  />
+                )
+              }
               {colId === 'link' && <LinkCell value={task.link_url} onSave={v => updateTask(task.id, 'link_url', v)} />}
-              {colId === 'internal_approval' && (
-                <EditableCell
-                  value={task.internal_approval || 'Pending'}
-                  type="internal_approval"
-                  options={INTERNAL_APPROVALS}
-                  disabled={task.status !== 'Completed'}
-                  onSave={v => updateTask(task.id, 'internal_approval', v)}
-                />
-              )}
-              {colId === 'send_link' && (
-                <Button
-                  size="sm"
-                  variant={task.client_link_visible ? "ghost" : "default"}
-                  className={`h-7 px-2 text-[10px] uppercase tracking-wider font-bold ${task.client_link_visible ? 'text-green-600' : ''}`}
-                  disabled={
-                    task.status !== 'Completed' ||
-                    task.internal_approval !== 'Approved' ||
-                    !task.link_url ||
-                    task.client_link_visible === true
-                  }
-                  onClick={() => publishTask(task.id)}
-                >
-                  {task.client_link_visible ? 'Sent' : 'Send Link'}
-                </Button>
-              )}
+              {
+                colId === 'internal_approval' && (
+                  <EditableCell
+                    value={task.internal_approval || 'Pending'}
+                    type="internal_approval"
+                    options={INTERNAL_APPROVALS}
+                    disabled={task.status !== 'Completed'}
+                    onSave={v => updateTask(task.id, 'internal_approval', v)}
+                  />
+                )
+              }
+              {colId === 'campaign_live' && <EditableCell value={task.campaign_live_date} type="date" onSave={v => updateTask(task.id, 'campaign_live_date', v)} />}
+              {colId === 'live_data' && <EditableCell value={task.live_data} type="date" onSave={v => updateTask(task.id, 'live_data', v)} />}
+              {
+                colId === 'send_link' && (
+                  <Button
+                    size="sm"
+                    variant={task.client_link_visible ? "ghost" : "default"}
+                    className={`h-7 px-2 text-[10px] uppercase tracking-wider font-bold ${task.client_link_visible ? 'text-green-600' : ''}`}
+                    disabled={
+                      task.status !== 'Completed' ||
+                      task.internal_approval !== 'Approved' ||
+                      !task.link_url ||
+                      task.client_link_visible === true
+                    }
+                    onClick={() => publishTask(task.id)}
+                  >
+                    {task.client_link_visible ? 'Sent' : 'Send Link'}
+                  </Button>
+                )
+              }
               {colId === 'client_approval' && <EditableCell value={task.client_approval} type="approval" disabled={true} />}
               {colId === 'client_feedback' && (
                 <div className="max-w-[150px]">
@@ -909,6 +958,7 @@ export default function ClientDetailPage() {
     selection: '',
     title: 'Task', category: 'Category', status: 'Status', priority: 'Priority',
     eta: 'ETA End', assigned: 'Assigned', link: 'Link', internal_approval: 'Internal Approval',
+    campaign_live: 'Campaign Live', live_data: 'Live Data',
     send_link: 'Send Link', client_approval: 'Client Approval', client_feedback: 'Feedback', actions: ''
   }
 
@@ -977,26 +1027,67 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="timeline">
-        <TabsList className="mb-4">
-          <TabsTrigger value="timeline">Timeline Tracker</TabsTrigger>
-          <TabsTrigger value="content" className="gap-1">
-            <FileText className="w-3.5 h-3.5" /> Content Calendar {allContent.length > 0 && `(${allContent.length})`}
+      <Tabs defaultValue="timeline" className="w-full">
+        <TabsList className="mb-6 p-1 bg-gray-100/50 border border-gray-200/50 rounded-xl flex h-auto gap-1">
+          <TabsTrigger value="timeline" className="px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-gray-200 hover:text-gray-700">
+            Timeline Tracker
           </TabsTrigger>
-          <TabsTrigger value="resources" className="gap-1">
-            <Library className="w-3.5 h-3.5" /> Resources {allResources.length > 0 && `(${allResources.length})`}
+          <TabsTrigger value="content" className="gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-gray-200 hover:text-gray-700">
+            <FileText className="w-4 h-4" /> Content Calendar ({allContent.length})
           </TabsTrigger>
-          <TabsTrigger value="reports" className="gap-1">
-            <BarChart3 className="w-3.5 h-3.5" /> Reports {allReports.length > 0 && `(${allReports.length})`}
+          <TabsTrigger value="resources" className="gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-gray-200 hover:text-gray-700">
+            <FolderOpen className="w-4 h-4" /> Resources
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-gray-200 hover:text-gray-700">
+            <BarChart3 className="w-4 h-4" /> Reports
           </TabsTrigger>
         </TabsList>
 
         {/* ── Timeline Tab ───────────────────────────────────────────────── */}
         <TabsContent value="timeline">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex bg-gray-100 p-1.5 rounded-xl border border-gray-200 shadow-inner">
+              <button
+                onClick={() => updateQueryParams({ service: 'seo', page: 1 })}
+                className={`flex items-center gap-2 px-6 py-2.5 text-xs font-bold rounded-lg transition-all duration-200 ${tService === 'seo' ? 'bg-blue-600 text-white shadow-md transform scale-105' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-700'}`}
+              >
+                <Search className="w-3.5 h-3.5" />
+                SEO
+              </button>
+              <button
+                onClick={() => updateQueryParams({ service: 'email', page: 1 })}
+                className={`flex items-center gap-2 px-6 py-2.5 text-xs font-bold rounded-lg transition-all duration-200 ${tService === 'email' ? 'bg-purple-600 text-white shadow-md transform scale-105' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-700'}`}
+              >
+                <Mail className="w-3.5 h-3.5" />
+                Email
+              </button>
+              <button
+                onClick={() => updateQueryParams({ service: 'paid', page: 1 })}
+                className={`flex items-center gap-2 px-6 py-2.5 text-xs font-bold rounded-lg transition-all duration-200 ${tService === 'paid' ? 'bg-orange-600 text-white shadow-md transform scale-105' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-700'}`}
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                Paid Ads
+              </button>
+            </div>
+            {(tSearch || tStatus !== 'all' || tCategory !== 'all' || tPriority !== 'all' || tAssignee !== 'all') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs text-gray-400"
+                onClick={() => {
+                  updateQueryParams({ status: 'all', category: 'all', priority: 'all', assigned_to: 'all', search: '', page: 1 })
+                  setTLocalSearch('')
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
+
           <div className="flex flex-wrap items-center gap-3 mb-4 p-4 bg-blue-50/50 border border-blue-100 rounded-lg shadow-sm">
             <div className="flex-1 min-w-[200px]">
               <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Plus className="w-3.5 h-3.5" /> Quick Add Task
+                <Plus className="w-3.5 h-3.5" /> Quick Add {serviceConfig.label.slice(0, -1)}
               </h3>
               <div className="flex gap-2">
                 <div className="relative flex-1">
@@ -1004,7 +1095,7 @@ export default function ClientDetailPage() {
                     type="text" value={newTask.title}
                     onChange={e => setNewTask(n => ({ ...n, title: e.target.value }))}
                     onKeyDown={e => e.key === 'Enter' && addTask()}
-                    placeholder="What needs to be done for this client?"
+                    placeholder={`What ${serviceConfig.label.toLowerCase()} needs to be done for this client?`}
                     className="w-full h-9 text-xs px-3 py-1 bg-white border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400 transition-all"
                     disabled={addingTask}
                   />
@@ -1019,6 +1110,7 @@ export default function ClientDetailPage() {
               </div>
             </div>
           </div>
+
           <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-white border border-gray-200 rounded-lg">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
@@ -1028,54 +1120,62 @@ export default function ClientDetailPage() {
                 className="h-8 text-xs pl-8 w-48 border-gray-200"
               />
             </div>
-            <div className="flex items-center gap-2 mr-2">
+
+            <div className="flex items-center gap-1 p-0.5 bg-gray-50 border border-gray-100 rounded-md mr-2">
               <Button
-                variant={tStatus === 'all' ? 'default' : 'outline'}
+                variant={tStatus === 'all' ? 'secondary' : 'ghost'}
                 size="sm"
-                className="h-8 text-xs px-3"
-                onClick={() => updateQueryParams({ status: 'all' })}
+                className={`h-7 text-xs px-3 font-medium ${tStatus === 'all' ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                onClick={() => updateQueryParams({ status: 'all', page: 1 })}
               >
                 All
               </Button>
               <Button
-                variant={tStatus === 'Completed' ? 'default' : 'outline'}
+                variant={tStatus === 'Completed' ? 'secondary' : 'ghost'}
                 size="sm"
-                className="h-8 text-xs px-3"
-                onClick={() => updateQueryParams({ status: 'Completed' })}
+                className={`h-7 text-xs px-3 font-medium ${tStatus === 'Completed' ? 'bg-white shadow-sm text-green-600' : 'text-gray-500 hover:text-gray-700'}`}
+                onClick={() => updateQueryParams({ status: 'Completed', page: 1 })}
               >
                 Completed
               </Button>
               <Button
-                variant={tStatus === 'not_completed' ? 'default' : 'outline'}
+                variant={tStatus === 'not_completed' ? 'secondary' : 'ghost'}
                 size="sm"
-                className="h-8 text-xs px-3"
-                onClick={() => updateQueryParams({ status: 'not_completed' })}
+                className={`h-7 text-xs px-3 font-medium ${tStatus === 'not_completed' ? 'bg-white shadow-sm text-amber-600' : 'text-gray-500 hover:text-gray-700'}`}
+                onClick={() => updateQueryParams({ status: 'not_completed', page: 1 })}
               >
                 Not Completed
               </Button>
             </div>
 
-            <Select value={tStatus === 'not_completed' ? 'all' : tStatus} onValueChange={v => updateQueryParams({ status: v })}>
+            <Select value={tStatus === 'not_completed' ? 'all' : tStatus} onValueChange={v => updateQueryParams({ status: v, page: 1 })}>
               <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="Any Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all" className="text-xs">Any Status</SelectItem>
                 {STATUSES.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={tCategory} onValueChange={v => updateQueryParams({ category: v, page: 1 })}>
-              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue placeholder="Category" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Any Category</SelectItem>
-                {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={tPriority} onValueChange={v => updateQueryParams({ priority: v, page: 1 })}>
-              <SelectTrigger className="w-28 h-8 text-xs"><SelectValue placeholder="Priority" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Any Priority</SelectItem>
-                {PRIORITIES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-              </SelectContent>
-            </Select>
+
+            {tService === 'seo' && (
+              <Select value={tCategory} onValueChange={v => updateQueryParams({ category: v, page: 1 })}>
+                <SelectTrigger className="w-32 h-8 text-xs"><SelectValue placeholder="Category" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any Category</SelectItem>
+                  {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+
+            {tService === 'seo' && (
+              <Select value={tPriority} onValueChange={v => updateQueryParams({ priority: v, page: 1 })}>
+                <SelectTrigger className="w-28 h-8 text-xs"><SelectValue placeholder="Priority" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any Priority</SelectItem>
+                  {PRIORITIES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+
             <Select value={tAssignee} onValueChange={v => updateQueryParams({ assigned_to: v, page: 1 })}>
               <SelectTrigger className="w-32 h-8 text-xs"><SelectValue placeholder="Assignee" /></SelectTrigger>
               <SelectContent>
@@ -1083,12 +1183,6 @@ export default function ClientDetailPage() {
                 {allMembers.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            {(tSearch || tStatus !== 'all' || tCategory !== 'all' || tPriority !== 'all' || tAssignee !== 'all') && (
-              <button onClick={() => {
-                updateQueryParams({ status: 'all', category: 'all', priority: 'all', assigned_to: 'all', search: '', page: 1 })
-                setTLocalSearch('')
-              }} className="text-xs text-blue-600 hover:text-blue-800 font-medium ml-1">Clear</button>
-            )}
 
             <div className="flex-1" />
 
@@ -1468,6 +1562,10 @@ export default function ClientDetailPage() {
             </div>
             <div><Label>Portal Password <span className="text-gray-400 text-xs">(leave empty for public)</span></Label>
               <Input value={settingsForm.portal_password || ''} onChange={e => setSettingsForm(f => ({ ...f, portal_password: e.target.value }))} placeholder="Optional" className="mt-1" />
+            </div>
+            <div>
+              <Label>Contact Emails <span className="text-gray-400 text-xs">(comma-separated)</span></Label>
+              <Input value={settingsForm.email || ''} onChange={e => setSettingsForm(f => ({ ...f, email: e.target.value }))} placeholder="e.g. john@comp.com, sara@comp.com" className="mt-1" />
             </div>
             {settingsError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">{settingsError}</p>}
             <DialogFooter>

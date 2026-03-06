@@ -14,7 +14,7 @@ import { LinkCell } from '@/components/table/LinkCell'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { Pagination } from '@/components/shared/Pagination'
 import { ClientSwitcher } from '@/components/shared/ClientSwitcher'
-import { STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, statusColors, priorityColors, approvalColors, internalApprovalColors, TASK_COLUMN_WIDTHS } from '@/lib/constants'
+import { STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, statusColors, priorityColors, approvalColors, internalApprovalColors, TASK_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS } from '@/lib/constants'
 import {
   DndContext,
   closestCenter,
@@ -58,10 +58,39 @@ function TasksPageContent() {
   const filterAssignee = searchParams.get('assigned_to') || 'all'
   const filterPriority = searchParams.get('priority') || 'all'
   const filterSearch = searchParams.get('search') || ''
+  const service = searchParams.get('service') || 'seo'
   const page = parseInt(searchParams.get('page')) || 1
 
   const [localSearch, setLocalSearch] = useState(filterSearch)
   const [columnOrder, setColumnOrder] = useState([])
+
+  const getServiceConfig = (srv) => {
+    switch (srv) {
+      case 'email':
+        return {
+          endpoint: '/api/email-tasks',
+          label: 'Email Tasks',
+          columns: ['serial', 'selection', 'client', 'title', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'campaign_live', 'live_data', 'client_approval', 'client_feedback', 'actions'],
+          widths: EMAIL_COLUMN_WIDTHS
+        }
+      case 'paid':
+        return {
+          endpoint: '/api/paid-tasks',
+          label: 'Paid Ads Tasks',
+          columns: ['serial', 'selection', 'client', 'title', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          widths: PAID_COLUMN_WIDTHS
+        }
+      default:
+        return {
+          endpoint: '/api/tasks',
+          label: 'SEO Tasks',
+          columns: ['serial', 'selection', 'client', 'title', 'category', 'status', 'priority', 'eta', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          widths: TASK_COLUMN_WIDTHS
+        }
+    }
+  }
+
+  const serviceConfig = useMemo(() => getServiceConfig(service), [service])
 
   const updateQueryParams = (updates) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -69,24 +98,36 @@ function TasksPageContent() {
       if (value === 'all' || value === '') params.delete(key)
       else params.set(key, value)
     })
-    if (!updates.page) params.delete('page')
+    if (!updates.page && page !== 1) params.delete('page')
     router.push(`/dashboard/tasks?${params.toString()}`)
   }
 
   useEffect(() => {
-    const saved = localStorage.getItem('tasks_column_order_v2')
+    const saved = localStorage.getItem(`tasks_column_order_${service}`)
     const parsed = safeJSON(saved)
-    if (parsed) setColumnOrder(parsed)
-    else setColumnOrder(['serial', 'selection', 'client', 'title', 'category', 'status', 'priority', 'eta', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'])
-  }, [])
+    if (parsed && Array.isArray(parsed)) {
+      const currentCols = serviceConfig.columns
+      const merged = parsed.filter(id => currentCols.includes(id))
+      currentCols.forEach(id => {
+        if (!merged.includes(id)) merged.push(id)
+      })
+      setColumnOrder(merged)
+    } else {
+      setColumnOrder(serviceConfig.columns)
+    }
+  }, [service, serviceConfig.columns])
 
   const loadData = async () => {
     setLoading(true)
+    setTasks([]) // Clear stale data immediate
+    setPagination({ total: 0, page: 1, totalPages: 1 })
+
     const params = new URLSearchParams(searchParams.toString())
+    params.delete('service') // API doesn't need the service param, it's in the URL
     if (!params.get('limit')) params.set('limit', '50')
 
     const [tasksRes, clientsRes, membersRes] = await Promise.all([
-      apiFetch(`/api/tasks?${params.toString()}`),
+      apiFetch(`${serviceConfig.endpoint}?${params.toString()}`),
       apiFetch('/api/clients'),
       apiFetch('/api/team'),
     ])
@@ -105,7 +146,7 @@ function TasksPageContent() {
     setLoading(false)
   }
 
-  useEffect(() => { loadData() }, [searchParams])
+  useEffect(() => { loadData() }, [searchParams, serviceConfig.endpoint])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -124,7 +165,7 @@ function TasksPageContent() {
     setTasks(ts => ts.map(t => t.id === taskId ? { ...t, [field]: value } : t))
 
     try {
-      const res = await apiFetch(`/api/tasks/${taskId}`, {
+      const res = await apiFetch(`${serviceConfig.endpoint}/${taskId}`, {
         method: 'PUT',
         body: JSON.stringify({
           [field]: value,
@@ -151,7 +192,7 @@ function TasksPageContent() {
     const task = safeArray(tasks).find(t => t.id === taskId)
     setSaving(s => ({ ...s, [taskId]: true }))
     try {
-      const res = await apiFetch(`/api/tasks/${taskId}/publish`, {
+      const res = await apiFetch(`${serviceConfig.endpoint}/${taskId}/publish`, {
         method: 'POST',
         body: JSON.stringify({ updated_at: task?.updated_at })
       })
@@ -176,7 +217,7 @@ function TasksPageContent() {
       title: 'Delete Task',
       description: 'This will permanently delete the task. This cannot be undone.',
       onConfirm: async () => {
-        await apiFetch(`/api/tasks/${taskId}`, { method: 'DELETE' })
+        await apiFetch(`${serviceConfig.endpoint}/${taskId}`, { method: 'DELETE' })
         setTasks(ts => ts.filter(t => t.id !== taskId))
       }
     })
@@ -187,7 +228,11 @@ function TasksPageContent() {
   const handleBulkAction = async () => {
     if (!bulkAction || bulkAction === '__none__' || selected.length === 0) return
     const [field, value] = bulkAction.split(':')
-    await apiFetch('/api/tasks/bulk-update', {
+    // NOTE: Bulk update endpoint might need to be service-specific if it changes, 
+    // but for now, we'll assume a shared /bulk-update if possible or specific ones.
+    // For safety, let's use service-specific ones if we decide to implement them.
+    const bulkUrl = service === 'seo' ? '/api/tasks/bulk-update' : `${serviceConfig.endpoint}/bulk-update`
+    await apiFetch(bulkUrl, {
       method: 'POST',
       body: JSON.stringify({ task_ids: selected, updates: { [field]: value } }),
     })
@@ -199,7 +244,7 @@ function TasksPageContent() {
   const addTask = async () => {
     if (!newTask.title.trim() || !newTask.client_id) return
     setAddingTask(true)
-    const res = await apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify(newTask) })
+    const res = await apiFetch(serviceConfig.endpoint, { method: 'POST', body: JSON.stringify(newTask) })
     const task = await res.json()
     setTasks(ts => [task, ...ts])
     setNewTask(n => ({ ...n, title: '' }))
@@ -229,7 +274,7 @@ function TasksPageContent() {
       setTasks(updated)
 
       try {
-        await apiFetch('/api/tasks/reorder', {
+        await apiFetch(`${serviceConfig.endpoint}/reorder`, {
           method: 'PUT',
           body: JSON.stringify({ ids: updated.map(t => t.id) })
         })
@@ -248,7 +293,7 @@ function TasksPageContent() {
         const oldIndex = items.indexOf(active.id)
         const newIndex = items.indexOf(over.id)
         const updated = arrayMove(items, oldIndex, newIndex)
-        localStorage.setItem('tasks_column_order', JSON.stringify(updated))
+        localStorage.setItem(`tasks_column_order_${service}`, JSON.stringify(updated))
         return updated
       })
     }
@@ -262,8 +307,8 @@ function TasksPageContent() {
       transform: CSS.Transform.toString(transform),
       transition,
       zIndex: isDragging ? 40 : (isSticky ? 30 : 10),
-      width: TASK_COLUMN_WIDTHS[id] || 'auto',
-      minWidth: TASK_COLUMN_WIDTHS[id] || 'auto',
+      width: serviceConfig.widths[id] || 'auto',
+      minWidth: serviceConfig.widths[id] || 'auto',
       position: isSticky ? 'sticky' : 'relative',
       left: isSticky ? leftPosMap[id] : undefined,
       background: isSticky ? '#f9fafb' : undefined,
@@ -304,7 +349,7 @@ function TasksPageContent() {
           } : {}
           return (
             <td key={colId} className={`px-3 py-1.5 overflow-hidden ${!isSticky && (colId === 'internal_approval' || colId === 'send_link') ? 'bg-gray-50/50' : ''}`}
-              style={{ width: TASK_COLUMN_WIDTHS[colId], minWidth: TASK_COLUMN_WIDTHS[colId], ...stickyStyle }}>
+              style={{ width: serviceConfig.widths[colId], minWidth: serviceConfig.widths[colId], ...stickyStyle }}>
               {colId === 'serial' && (
                 <div className="text-[10px] font-mono text-gray-400 text-center select-none">
                   {allTasks.findIndex(t => t.id === task.id) + 1}
@@ -349,6 +394,8 @@ function TasksPageContent() {
                   onSave={v => updateTask(task.id, 'internal_approval', v)}
                 />
               )}
+              {colId === 'campaign_live' && <EditableCell value={task.campaign_live_date} type="date" onSave={v => updateTask(task.id, 'campaign_live_date', v)} />}
+              {colId === 'live_data' && <EditableCell value={task.live_data} type="date" onSave={v => updateTask(task.id, 'live_data', v)} />}
               {colId === 'send_link' && (
                 <Button
                   size="sm"
@@ -390,20 +437,43 @@ function TasksPageContent() {
   const columnLabels = {
     selection: '', client: 'Client', title: 'Task', category: 'Category', status: 'Status', priority: 'Priority',
     eta: 'ETA End', assigned: 'Assigned', link: 'Link', internal_approval: 'Internal Approval', send_link: 'Send Link',
+    campaign_live: 'Campaign Live', live_data: 'Live Data',
     client_approval: 'Client Approval', client_feedback: 'Client Feedback', actions: ''
   }
-  const columnSortFields = { client: 'client_name', title: 'title', status: 'status', priority: 'priority', eta: 'eta_end' }
+  const columnSortFields = { client: 'client_name', title: 'title', status: 'status', priority: 'priority', eta: 'eta_end', campaign_live: 'campaign_live_date' }
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">All Tasks</h1>
-          <p className="text-gray-500 text-sm mt-1">{pagination.total} tasks across all clients</p>
+          <p className="text-gray-500 text-sm mt-1">{pagination.total} {serviceConfig.label} across all clients</p>
         </div>
-        <Button variant="outline" size="sm" onClick={loadData} className="gap-1">
-          <RefreshCw className="w-4 h-4" /> Refresh
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex bg-gray-100/80 p-1.5 rounded-xl border border-gray-200/50 shadow-inner">
+            <button
+              onClick={() => updateQueryParams({ service: 'seo', page: 1 })}
+              className={`px-6 py-2 text-xs font-bold rounded-lg transition-all ${service === 'seo' ? 'bg-white text-blue-700 shadow-md border border-blue-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+            >
+              SEO Tasks
+            </button>
+            <button
+              onClick={() => updateQueryParams({ service: 'email', page: 1 })}
+              className={`px-6 py-2 text-xs font-bold rounded-lg transition-all ${service === 'email' ? 'bg-white text-blue-700 shadow-md border border-blue-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+            >
+              Email Tasks
+            </button>
+            <button
+              onClick={() => updateQueryParams({ service: 'paid', page: 1 })}
+              className={`px-6 py-2 text-xs font-bold rounded-lg transition-all ${service === 'paid' ? 'bg-white text-blue-700 shadow-md border border-blue-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+            >
+              Paid Ads Tasks
+            </button>
+          </div>
+          <Button variant="outline" size="sm" onClick={loadData} className="h-10 px-4 gap-2 border-gray-200 hover:bg-gray-50 hover:text-blue-600 transition-all shadow-sm font-semibold">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </Button>
+        </div>
       </div>
 
       <ClientSwitcher
@@ -415,7 +485,7 @@ function TasksPageContent() {
       <div className="flex flex-wrap items-center gap-3 mb-4 p-4 bg-blue-50/50 border border-blue-100 rounded-lg shadow-sm">
         <div className="flex-1 min-w-[200px]">
           <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Plus className="w-3.5 h-3.5" /> Quick Add Task
+            <Plus className="w-3.5 h-3.5" /> Quick Add {serviceConfig.label.slice(0, -1)}
           </h3>
           <div className="flex gap-2">
             <Select
@@ -435,7 +505,7 @@ function TasksPageContent() {
                 type="text" value={newTask.title}
                 onChange={e => setNewTask(n => ({ ...n, title: e.target.value }))}
                 onKeyDown={e => e.key === 'Enter' && addTask()}
-                placeholder="What needs to be done?"
+                placeholder={`What ${serviceConfig.label.toLowerCase()} needs to be done?`}
                 className="w-full h-9 text-xs px-3 py-1 bg-white border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400 transition-all"
                 disabled={addingTask}
               />
@@ -469,13 +539,15 @@ function TasksPageContent() {
             {STATUSES.map(s => <SelectItem key={s} value={s} className="text-xs">{s === 'Pending Review' ? 'Review' : s}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={filterCategory} onValueChange={v => updateQueryParams({ category: v })}>
-          <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All Categories" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="text-xs">All Categories</SelectItem>
-            {CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        {service === 'seo' && (
+          <Select value={filterCategory} onValueChange={v => updateQueryParams({ category: v })}>
+            <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All Categories" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">All Categories</SelectItem>
+              {CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
         <Select value={filterAssignee} onValueChange={v => updateQueryParams({ assigned_to: v })}>
           <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="All Members" /></SelectTrigger>
           <SelectContent>
@@ -483,13 +555,15 @@ function TasksPageContent() {
             {safeArray(members).map(m => <SelectItem key={m?.id} value={m?.id} className="text-xs">{m?.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={filterPriority} onValueChange={v => updateQueryParams({ priority: v })}>
-          <SelectTrigger className="h-8 text-xs w-28"><SelectValue placeholder="All Priority" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="text-xs">All Priority</SelectItem>
-            {PRIORITIES.map(p => <SelectItem key={p} value={p} className="text-xs">{p}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        {service === 'seo' && (
+          <Select value={filterPriority} onValueChange={v => updateQueryParams({ priority: v })}>
+            <SelectTrigger className="h-8 text-xs w-28"><SelectValue placeholder="All Priority" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">All Priority</SelectItem>
+              {PRIORITIES.map(p => <SelectItem key={p} value={p} className="text-xs">{p}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
         {anyFilter && (
           <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-400" onClick={() => {
             updateQueryParams({

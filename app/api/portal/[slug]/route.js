@@ -27,11 +27,19 @@ export async function GET(request, { params }) {
             }
         }
 
-        const tasks = await database.collection('tasks').find({ client_id: clientData.id }).sort({ category: 1, created_at: 1 }).toArray()
+        const seoTasks = await database.collection('tasks').find({ client_id: clientData.id }).sort({ category: 1, created_at: 1 }).toArray()
+        const emailTasks = await database.collection('email_tasks').find({ client_id: clientData.id }).sort({ created_at: 1 }).toArray()
+        const paidTasks = await database.collection('paid_tasks').find({ client_id: clientData.id }).sort({ created_at: 1 }).toArray()
+
         const reports = await database.collection('reports').find({ client_id: clientData.id }).sort({ report_date: -1 }).toArray()
         const contentItems = await database.collection('content_items').find({ client_id: clientData.id }).sort({ week: 1, created_at: 1 }).toArray()
 
-        const cleanTasks = safeArray(tasks).map(({ _id, ...t }) => t)
+        const allTasks = [
+            ...safeArray(seoTasks).map(({ _id, ...t }) => ({ ...t, service: 'seo' })),
+            ...safeArray(emailTasks).map(({ _id, ...t }) => ({ ...t, service: 'email' })),
+            ...safeArray(paidTasks).map(({ _id, ...t }) => ({ ...t, service: 'paid' }))
+        ]
+
         const cleanReports = safeArray(reports).map(({ _id, ...r }) => r)
         const cleanContent = safeArray(contentItems).map(({ _id, ...c }) => c)
         const resources = await database.collection('client_resources').find({ client_id: clientData.id }).sort({ created_at: -1 }).toArray()
@@ -39,7 +47,7 @@ export async function GET(request, { params }) {
 
         return handleCORS(NextResponse.json({
             client: clientData,
-            tasks: cleanTasks,
+            tasks: allTasks,
             reports: cleanReports,
             content: cleanContent,
             resources: cleanResources

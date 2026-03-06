@@ -37,7 +37,7 @@ export async function POST(request) {
         }
 
         const cleanData = validation.data
-        const { name, service_type, portal_password } = cleanData
+        const { name, service_type, portal_password, email } = cleanData
 
         const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
         const existing = await database.collection('clients').findOne({ slug })
@@ -49,6 +49,7 @@ export async function POST(request) {
             id: uuidv4(), name, slug: finalSlug,
             service_type: service_type || 'SEO',
             portal_password: hashedPortalPassword,
+            email: email || null,
             is_active: true,
             created_at: new Date()
         }

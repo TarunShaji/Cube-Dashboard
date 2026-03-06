@@ -30,15 +30,18 @@ export async function PUT(request, { params }) {
         }
 
         const cleanData = validation.data
+        const { service, ...approvalUpdate } = cleanData
 
-        const task = await database.collection('tasks').findOne({ id: taskId, client_id: clientDoc.id })
-        if (!task) return handleCORS(NextResponse.json({ error: 'Task not found' }, { status: 404 }))
+        const collectionName = service === 'email' ? 'email_tasks' : (service === 'paid' ? 'paid_tasks' : 'tasks')
+
+        const task = await database.collection(collectionName).findOne({ id: taskId, client_id: clientDoc.id })
+        if (!task) return handleCORS(NextResponse.json({ error: 'Task not found in service: ' + (service || 'seo') }, { status: 404 }))
 
         // Execute centralized lifecycle logic
-        const finalState = applyTaskTransition(task, cleanData);
+        const finalState = applyTaskTransition(task, approvalUpdate);
 
         // Atomic Update with Optimistic Locking
-        const result = await database.collection('tasks').updateOne(
+        const result = await database.collection(collectionName).updateOne(
             { id: taskId, updated_at: task.updated_at },
             { $set: finalState }
         )
@@ -48,7 +51,7 @@ export async function PUT(request, { params }) {
         }
 
         // Post-Update Invariant Re-Check
-        const updated = await database.collection('tasks').findOne({ id: taskId })
+        const updated = await database.collection(collectionName).findOne({ id: taskId })
         try {
             assertTaskInvariant(updated);
         } catch (criticalError) {

@@ -65,13 +65,55 @@ function MemberSelectCell({ value, members, onSave }) {
   )
 }
 
+function EditableEmailCell({ value, onSave }) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [temp, setTemp] = useState(value || '')
+
+  const handleBlur = () => {
+    setIsEditing(false)
+    if (temp !== (value || '')) onSave(temp)
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleBlur()
+    if (e.key === 'Escape') {
+      setIsEditing(false)
+      setTemp(value || '')
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <Input
+        autoFocus
+        value={temp}
+        onChange={e => setTemp(e.target.value)}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+        className="h-7 text-xs border-blue-400 min-w-[150px]"
+        onClick={e => e.stopPropagation()}
+      />
+    )
+  }
+
+  return (
+    <div
+      className={`cursor-pointer px-2 py-1 rounded transition-colors text-xs truncate max-w-[200px] ${value ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-300 hover:bg-gray-50'}`}
+      onClick={e => { e.stopPropagation(); setIsEditing(true) }}
+      title="Click to edit emails"
+    >
+      {value || 'Add emails...'}
+    </div>
+  )
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const { data: clients, mutate, error } = useSWR('/api/clients', swrFetcher)
   const { data: membersData } = useSWR('/api/team', swrFetcher)
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ name: '', service_type: 'SEO', portal_password: '' })
+  const [form, setForm] = useState({ name: '', service_type: 'SEO', portal_password: '', email: '' })
   const [saving, setSaving] = useState(false)
   const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || ''
 
@@ -80,7 +122,8 @@ export default function DashboardPage() {
 
   const filtered = useMemo(() => clientList.filter(c =>
     c?.name?.toLowerCase().includes(search.toLowerCase()) ||
-    c?.service_type?.toLowerCase().includes(search.toLowerCase())
+    c?.service_type?.toLowerCase().includes(search.toLowerCase()) ||
+    c?.email?.toLowerCase().includes(search.toLowerCase())
   ), [clientList, search])
 
   const handleAdd = async (e) => {
@@ -92,7 +135,7 @@ export default function DashboardPage() {
     })
     if (res.ok) {
       setShowAdd(false)
-      setForm({ name: '', service_type: 'SEO', portal_password: '' })
+      setForm({ name: '', service_type: 'SEO', portal_password: '', email: '' })
       mutate()
     }
     setSaving(false)
@@ -156,6 +199,7 @@ export default function DashboardPage() {
                 <th className="text-left px-4 py-3 font-semibold text-gray-600" title="CPL: Assigned member">CPL</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Active Tasks</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Pending Approval</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Email</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Portal</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -224,6 +268,14 @@ export default function DashboardPage() {
                     ) : <span className="text-gray-300">—</span>}
                   </td>
 
+                  {/* Email */}
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                    <EditableEmailCell
+                      value={client.email}
+                      onSave={v => updateClientField(client.id, 'email', v)}
+                    />
+                  </td>
+
                   {/* Portal Link */}
                   <td className="px-4 py-3">
                     <a
@@ -277,6 +329,10 @@ export default function DashboardPage() {
             <div className="space-y-2">
               <Label>Portal Password <span className="text-gray-400 text-xs">(optional)</span></Label>
               <Input value={form.portal_password} onChange={e => setForm(f => ({ ...f, portal_password: e.target.value }))} placeholder="Leave empty for public access" />
+            </div>
+            <div className="space-y-2">
+              <Label>Contact Emails <span className="text-gray-400 text-xs">(optional, comma-separated)</span></Label>
+              <Input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="e.g. john@comp.com, sara@comp.com" />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>

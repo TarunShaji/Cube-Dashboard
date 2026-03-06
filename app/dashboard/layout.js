@@ -1,20 +1,22 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { getUser, logout } from '@/lib/middleware/auth'
 import { safeArray } from '@/lib/safe'
 import {
   LayoutDashboard, Users, CheckSquare, BarChart3,
-  Upload, Menu, X, LogOut, ChevronRight, UserCircle, FolderOpen, FileText
+  Upload, Menu, X, LogOut, ChevronRight, UserCircle, FolderOpen, FileText, Search, Mail, TrendingUp
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-  { href: '/dashboard/tasks', label: 'All Tasks', icon: CheckSquare },
+  { href: '/dashboard/tasks?service=seo', label: 'SEO Tasks', icon: Search },
+  { href: '/dashboard/tasks?service=email', label: 'Email Tasks', icon: Mail },
+  { href: '/dashboard/tasks?service=paid', label: 'Paid Ads Tasks', icon: TrendingUp },
   { href: '/dashboard/content', label: 'Content Calendar', icon: FileText },
   { href: '/dashboard/team', label: 'Team', icon: UserCircle },
   { href: '/dashboard/reports', label: 'Reports', icon: BarChart3 },
@@ -24,6 +26,7 @@ const navItems = [
 export default function DashboardLayout({ children }) {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [user, setUser] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
@@ -43,6 +46,15 @@ export default function DashboardLayout({ children }) {
 
   const isActive = (item) => {
     if (item.exact) return pathname === item.href
+    if (item.href.includes('?')) {
+      const [path, query] = item.href.split('?')
+      const itemParams = new URLSearchParams(query)
+
+      const pathMatch = pathname === path
+      const serviceMatch = itemParams.get('service') === searchParams.get('service')
+
+      return pathMatch && serviceMatch
+    }
     return pathname.startsWith(item.href)
   }
 
@@ -71,20 +83,15 @@ export default function DashboardLayout({ children }) {
 
         {/* Nav */}
         <nav className="flex-1 px-2 py-4 space-y-0.5">
-          {safeArray(navItems).map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${isActive(item)
-                ? 'bg-blue-50 text-blue-700'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-            >
-              <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive(item) ? 'text-blue-700' : 'text-gray-400'
-                }`} />
-              {sidebarOpen && <span className="truncate">{item.label}</span>}
-            </Link>
-          ))}
+          <Suspense fallback={<div className="h-full w-full bg-white animate-pulse" />}>
+            <NavContent
+              navItems={navItems}
+              pathname={pathname}
+              searchParams={searchParams}
+              sidebarOpen={sidebarOpen}
+              isActive={isActive}
+            />
+          </Suspense>
         </nav>
 
         {/* User */}
@@ -120,5 +127,26 @@ export default function DashboardLayout({ children }) {
         {children}
       </main>
     </div>
+  )
+}
+
+function NavContent({ navItems, pathname, searchParams, sidebarOpen, isActive }) {
+  return (
+    <>
+      {safeArray(navItems).map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${isActive(item)
+            ? 'bg-blue-50 text-blue-700'
+            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+        >
+          <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive(item) ? 'text-blue-700' : 'text-gray-400'
+            }`} />
+          {sidebarOpen && <span className="truncate">{item.label}</span>}
+        </Link>
+      ))}
+    </>
   )
 }
