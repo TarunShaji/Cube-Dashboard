@@ -353,17 +353,16 @@ function FormatGuide({ actionLabel }) {
       <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-blue-600">SEO Tasks: Detected Columns</CardTitle></CardHeader>
       <CardContent className="text-xs text-gray-500 space-y-4">
         <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Required</p>
-          <p className="text-gray-600 font-medium">Task / Task Name / Task Title / Title / Name / To-do / Todo</p>
-        </div>
-        <div className="p-3 border border-gray-100 rounded-lg">
-          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Optional (auto-detected)</p>
+          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Use these headers only</p>
           <ul className="space-y-1.5">
-            <li><span className="font-semibold text-gray-800">Status</span> → To Be Started, In Progress, Completed, Blocked...</li>
-            <li><span className="font-semibold text-gray-800">Category</span> → Type / Group / Service / Industry</li>
-            <li><span className="font-semibold text-gray-800">Priority</span> → P0/Urgent, P1/High, P2/Normal, P3/Low</li>
-            <li><span className="font-semibold text-gray-800">ETA</span> → Due / Deadline / Required by / Timeline</li>
-            <li><span className="font-semibold text-gray-800">Link</span> → URL / Live Link</li>
+            <li className="text-gray-700">Task</li>
+            <li className="text-gray-700">Category</li>
+            <li className="text-gray-700">Status</li>
+            <li className="text-gray-700">Priority</li>
+            <li className="text-gray-700">ETA End</li>
+            <li className="text-gray-700">Assigned</li>
+            <li className="text-gray-700">Link</li>
+            <li className="text-gray-700">Internal Approval</li>
           </ul>
         </div>
         <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-blue-700 leading-normal">
@@ -378,17 +377,15 @@ function FormatGuide({ actionLabel }) {
       <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-purple-600">Email Tasks: Detected Columns</CardTitle></CardHeader>
       <CardContent className="text-xs text-gray-500 space-y-4">
         <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Required</p>
-          <p className="text-gray-600 font-medium">Task / Task Name / Subject / Email Task</p>
-        </div>
-        <div className="p-3 border border-gray-100 rounded-lg">
-          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Optional (auto-detected)</p>
+          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Use these headers only</p>
           <ul className="space-y-1.5">
-            <li><span className="font-semibold text-gray-800">Status</span> → To Be Started, In Progress, Completed...</li>
-            <li><span className="font-semibold text-gray-800">Email Link</span> → Link / Email Link</li>
-            <li><span className="font-semibold text-gray-800">Live Date</span> → Campaign Live / Flow Live / Live Date</li>
-            <li><span className="font-semibold text-gray-800">Live Data</span> → Live Data</li>
-            <li><span className="font-semibold text-gray-800">Internal Appr.</span> → Approved / Pending</li>
+            <li className="text-gray-700">Task</li>
+            <li className="text-gray-700">Status</li>
+            <li className="text-gray-700">Assigned</li>
+            <li className="text-gray-700">Link</li>
+            <li className="text-gray-700">Internal Approval</li>
+            <li className="text-gray-700">Campaign Live</li>
+            <li className="text-gray-700">Live Data</li>
           </ul>
         </div>
         <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-blue-700 leading-normal">
@@ -403,15 +400,13 @@ function FormatGuide({ actionLabel }) {
       <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-orange-600">Paid Ads: Detected Columns</CardTitle></CardHeader>
       <CardContent className="text-xs text-gray-500 space-y-4">
         <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Required</p>
-          <p className="text-gray-600 font-medium">Task / Task Name / Ad Set / Paid Ads Task</p>
-        </div>
-        <div className="p-3 border border-gray-100 rounded-lg">
-          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Optional (auto-detected)</p>
+          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Use these headers only</p>
           <ul className="space-y-1.5">
-            <li><span className="font-semibold text-gray-800">Status</span> → To Be Started, In Progress, Completed...</li>
-            <li><span className="font-semibold text-gray-800">Ad Link</span> → Link / Ad Link / Live Link</li>
-            <li><span className="font-semibold text-gray-800">Internal Appr.</span> → Approved / Pending</li>
+            <li className="text-gray-700">Task</li>
+            <li className="text-gray-700">Status</li>
+            <li className="text-gray-700">Assigned</li>
+            <li className="text-gray-700">Link</li>
+            <li className="text-gray-700">Internal Approval</li>
           </ul>
         </div>
         <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-blue-700 leading-normal">
@@ -426,19 +421,22 @@ function FormatGuide({ actionLabel }) {
       <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-emerald-600">Content Calendar: Detected Columns</CardTitle></CardHeader>
       <CardContent className="text-xs text-gray-500 space-y-4">
         <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Required</p>
-          <p className="text-gray-600 font-medium">Blog Title / Blog Topic / Title / Topic</p>
-        </div>
-        <div className="p-3 border border-gray-100 rounded-lg">
-          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Optional (auto-detected)</p>
+          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Use these headers only</p>
           <ul className="space-y-1.5">
-            <li><span className="font-semibold text-gray-800">Week</span> → Keep as number 1–10</li>
-            <li><span className="font-semibold text-gray-800">Keyword</span> → Primary Keyword / Keywords</li>
-            <li><span className="font-semibold text-gray-800">Writer</span> → Author / Writer</li>
-            <li><span className="font-semibold text-gray-800">Blog Doc</span> → Blog Doc / Blog Document</li>
-            <li><span className="font-semibold text-gray-800">Blog Link</span> → Published Link / Link</li>
-            <li><span className="font-semibold text-gray-800">Date</span> → Normalised to YYYY-MM-DD</li>
-            <li><span className="font-semibold text-gray-800">Status</span> → Draft, In Progress, Sent, Published...</li>
+            <li className="text-gray-700">Blog Title</li>
+            <li className="text-gray-700">Week</li>
+            <li className="text-gray-700">Primary Keyword</li>
+            <li className="text-gray-700">Secondary Keyword</li>
+            <li className="text-gray-700">Writer</li>
+            <li className="text-gray-700">Search Vol.</li>
+            <li className="text-gray-700">Outline</li>
+            <li className="text-gray-700">Topic Approval</li>
+            <li className="text-gray-700">Blog Status</li>
+            <li className="text-gray-700">Blog Doc</li>
+            <li className="text-gray-700">Internal Approval</li>
+            <li className="text-gray-700">Blog Link</li>
+            <li className="text-gray-700">Required By</li>
+            <li className="text-gray-700">Published</li>
           </ul>
         </div>
         <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-amber-700 leading-normal font-medium">
@@ -560,7 +558,7 @@ function ClickUpCSVImport({ clients }) {
   return (
     <ImportShell
       title="Upload ClickUp CSV Export"
-      hint={<span>Export from ClickUp → select columns: <b>Task Name, Status, Priority, Date Updated</b>. Other columns are ignored.</span>}
+      hint={<span>Use these headers only: <b>Task Name, Status, Priority, Date Updated</b>.</span>}
       actionLabel="tasks"
       clients={clients}
       selectedClient={selectedClient}
@@ -599,10 +597,7 @@ function TaskCSVImport({ clients }) {
       const p = parseSpreadsheet(text)
       if (!p) { setParseError('Could not parse. Make sure there is a header row and at least one data row.'); setParsed(null); setMappedRows([]); return }
 
-      console.log('[task-import] 📋 Raw sheet columns:', p.headers)
-
       const mapped = p.rows.map(r => rowToTask(r, p.headers, 'preview')).filter(Boolean)
-      console.log('[task-import] ✅ Mapped', mapped.length, 'of', p.rows.length, 'rows | Sample:', mapped[0])
 
       if (mapped.length === 0) {
         setParsed({ ...p, validCount: 0, unsupported: true, unsupportedMsg: 'No rows with a recognisable title column found. Rename your column to "Task", "Title", or "Name".' })
@@ -959,10 +954,7 @@ function ContentCSVImport({ clients }) {
       const p = parseSpreadsheet(text)
       if (!p) { setParseError('Could not parse. Make sure there is a header row and at least one data row.'); setParsed(null); setMappedRows([]); return }
 
-      console.log('[content-import] 📋 Raw sheet columns:', p.headers)
-
       const mapped = p.rows.map(r => rowToContent(r, p.headers, 'preview')).filter(Boolean)
-      console.log('[content-import] ✅ Mapped', mapped.length, 'of', p.rows.length, 'rows | Sample:', mapped[0])
 
       if (mapped.length === 0) {
         setParsed({ ...p, validCount: 0, unsupported: true, unsupportedMsg: 'No rows with a recognisable "Blog Title" or "Title" column found.' })
@@ -986,7 +978,6 @@ function ContentCSVImport({ clients }) {
     if (!parsed || selectedClient === '__none__') return
     setImporting(true); setResult(null)
     const items = safeArray(parsed.rows).map(r => rowToContent(r, parsed.headers, selectedClient)).filter(Boolean)
-    console.log('[content-import] 🚀 Sending', items.length, 'items | First item:', items[0])
     if (items.length === 0) {
       setResult({ success: 0, failed: parsed.rows.length, total: parsed.rows.length, error: 'No valid content items found — ensure your spreadsheet has a "Blog Title" column.' })
       setImporting(false); return
