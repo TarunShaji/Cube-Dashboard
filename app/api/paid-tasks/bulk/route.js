@@ -5,6 +5,7 @@ import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
 import { validateBody } from '@/lib/middleware/validation'
 import { applyTaskTransition } from '@/lib/engine/lifecycle'
 import { PaidBulkSchema } from '@/lib/db/schemas/paid.schema'
+import { getActiveTeamMemberIdSet, normalizeAssignedTo } from '@/lib/team/assignee'
 
 export const runtime = 'nodejs';
 
@@ -19,9 +20,12 @@ export async function POST(request) {
         }
 
         const { tasks } = validation.data
+        const validMemberIds = await getActiveTeamMemberIdSet(database)
         const finalTasks = tasks.map(t => {
+            const assignedTo = normalizeAssignedTo(t.assigned_to, validMemberIds)
             return applyTaskTransition(null, {
                 ...t,
+                ...(assignedTo !== undefined ? { assigned_to: assignedTo } : {}),
                 id: uuidv4()
             })
         })

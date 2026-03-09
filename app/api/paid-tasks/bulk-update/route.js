@@ -4,6 +4,8 @@ import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
 import { applyTaskTransition } from '@/lib/engine/lifecycle'
 import { getActiveTeamMemberIdSet, normalizeAssignedTo } from '@/lib/team/assignee'
 
+export const runtime = 'nodejs';
+
 export async function POST(request) {
     return withAuth(request, async () => {
         try {
@@ -24,22 +26,16 @@ export async function POST(request) {
                 }
             }
 
-            // Fetch current tasks to apply individual transitions
-            const tasks = await database.collection('tasks').find({ id: { $in: task_ids } }).toArray()
-
+            const tasks = await database.collection('paid_tasks').find({ id: { $in: task_ids } }).toArray()
             const results = []
             const errors = []
 
             for (const task of tasks) {
                 try {
-                    // 1. Concurrency Check (Individual)
-                    // If the bulk call provides an updated_at map, we could check it here.
-                    // For now, we enforce strict version match during update.
-
                     const finalUpdate = applyTaskTransition(task, normalizedUpdates)
                     finalUpdate.updated_at = new Date()
 
-                    const result = await database.collection('tasks').updateOne(
+                    const result = await database.collection('paid_tasks').updateOne(
                         { id: task.id, updated_at: task.updated_at },
                         { $set: finalUpdate }
                     )
@@ -55,7 +51,7 @@ export async function POST(request) {
             }
 
             return handleCORS(NextResponse.json({
-                message: `Updated ${results.length} tasks`,
+                message: `Updated ${results.length} paid tasks`,
                 updated: results.length,
                 failed: errors.length,
                 errors: errors.length > 0 ? errors : undefined

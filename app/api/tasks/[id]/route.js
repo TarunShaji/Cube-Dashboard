@@ -4,6 +4,7 @@ import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
 import { applyTaskTransition, assertTaskInvariant } from '@/lib/engine/lifecycle'
 import { validateBody, rejectFields } from '@/lib/middleware/validation'
 import { TaskUpdateSchema } from '@/lib/db/schemas/task.schema'
+import { getActiveTeamMemberIdSet, normalizeAssignedTo } from '@/lib/team/assignee'
 
 export const runtime = 'nodejs';
 
@@ -43,6 +44,10 @@ export async function PUT(request, { params }) {
         }
 
         const cleanUpdate = validation.data
+        if (Object.prototype.hasOwnProperty.call(cleanUpdate, 'assigned_to')) {
+            const validMemberIds = await getActiveTeamMemberIdSet(database)
+            cleanUpdate.assigned_to = normalizeAssignedTo(cleanUpdate.assigned_to, validMemberIds)
+        }
 
         // 3. Load Current State
         const current = await database.collection('tasks').findOne({ id: taskId })

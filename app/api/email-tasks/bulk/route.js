@@ -6,6 +6,7 @@ import { safeArray } from '@/lib/safe'
 import { validateBody } from '@/lib/middleware/validation'
 import { applyTaskTransition } from '@/lib/engine/lifecycle'
 import { EmailBulkSchema } from '@/lib/db/schemas/email.schema'
+import { getActiveTeamMemberIdSet, normalizeAssignedTo } from '@/lib/team/assignee'
 
 export const runtime = 'nodejs';
 
@@ -20,10 +21,13 @@ export async function POST(request) {
         }
 
         const { tasks } = validation.data
+        const validMemberIds = await getActiveTeamMemberIdSet(database)
         const finalTasks = tasks.map(t => {
+            const assignedTo = normalizeAssignedTo(t.assigned_to, validMemberIds)
             // Apply lifecycle defaults and IDs
             return applyTaskTransition(null, {
                 ...t,
+                ...(assignedTo !== undefined ? { assigned_to: assignedTo } : {}),
                 id: uuidv4()
             })
         })

@@ -8,13 +8,13 @@ import { applyTaskTransition, assertTaskInvariant } from '@/lib/engine/lifecycle
 import { TaskCreateSchema } from '@/lib/db/schemas/task.schema'
 import { validateBody } from '@/lib/middleware/validation'
 import { z } from 'zod'
+import { getActiveTeamMemberIdSet, normalizeAssignedTo } from '@/lib/team/assignee'
 
 export async function POST(request) {
     return withAuth(request, async () => {
         return withErrorLogging(request, async () => {
             const database = await connectToMongo()
             const body = await request.json()
-            const { tasks, client_id } = body
 
             // Explicit import schema — does NOT inherit .strict() from TaskCreateSchema.
             // Unknown fields are stripped, not rejected. This avoids 400s from extra columns.
@@ -44,6 +44,9 @@ export async function POST(request) {
                 return handleCORS(NextResponse.json(validation.error, { status: 400 }))
             }
 
+            const { tasks, client_id } = validation.data
+            const validMemberIds = await getActiveTeamMemberIdSet(database)
+
             const preparedDocs = []
             const errors = []
 
@@ -67,7 +70,7 @@ export async function POST(request) {
                         description: t.description || null,
                         category: t.category || 'Other',
                         priority: t.priority || 'P2',
-                        assigned_to: t.assigned_to || null,
+                        assigned_to: normalizeAssignedTo(t.assigned_to, validMemberIds) ?? null,
                         duration_days: t.duration_days || null,
                         eta_start: t.eta_start || null,
                         eta_end: t.eta_end || null,

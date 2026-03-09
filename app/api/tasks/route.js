@@ -6,6 +6,7 @@ import { applyTaskTransition, assertTaskInvariant } from '@/lib/engine/lifecycle
 import { safeURL, safeArray } from '@/lib/safe'
 import { validateBody, rejectFields } from '@/lib/middleware/validation'
 import { TaskCreateSchema } from '@/lib/db/schemas/task.schema'
+import { getActiveTeamMemberIdSet, normalizeAssignedTo } from '@/lib/team/assignee'
 
 export const runtime = 'nodejs';
 
@@ -105,10 +106,13 @@ export async function POST(request) {
         }
 
         const cleanData = validation.data
+        const validMemberIds = await getActiveTeamMemberIdSet(database)
+        const assignedTo = normalizeAssignedTo(cleanData.assigned_to, validMemberIds)
 
         // 3. Engine-Backed Creation
         const finalTask = applyTaskTransition(null, {
             ...cleanData,
+            ...(assignedTo !== undefined ? { assigned_to: assignedTo } : {}),
             id: uuidv4()
         });
 
