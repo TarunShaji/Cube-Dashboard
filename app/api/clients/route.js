@@ -31,9 +31,6 @@ export async function GET(request) {
                     task_count: { $sum: 1 },
                     in_progress_count: {
                         $sum: { $cond: [{ $eq: ['$status', 'In Progress'] }, 1, 0] }
-                    },
-                    approval_count: {
-                        $sum: { $cond: [{ $eq: ['$status', 'Pending Review'] }, 1, 0] }
                     }
                 }
             }
@@ -45,8 +42,7 @@ export async function GET(request) {
             return {
                 ...client,
                 task_count: counts?.task_count || 0,
-                in_progress_count: counts?.in_progress_count || 0,
-                approval_count: counts?.approval_count || 0
+                in_progress_count: counts?.in_progress_count || 0
             }
         })
 

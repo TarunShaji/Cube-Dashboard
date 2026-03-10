@@ -678,8 +678,8 @@ function TasksPageContent() {
               <SelectItem value="__none__" className="text-xs text-gray-400">Choose action…</SelectItem>
               <SelectItem value="status:In Progress" className="text-xs">Set: In Progress</SelectItem>
               <SelectItem value="status:Completed" className="text-xs">Set: Completed</SelectItem>
+              <SelectItem value="status:Implemented" className="text-xs">Set: Implemented</SelectItem>
               <SelectItem value="status:Blocked" className="text-xs">Set: Blocked</SelectItem>
-              <SelectItem value="status:Pending Review" className="text-xs">Set: Review</SelectItem>
             </SelectContent>
           </Select>
           <Button size="sm" className="h-7 text-xs" onClick={handleBulkAction} disabled={bulkAction === '__none__'}>Apply</Button>

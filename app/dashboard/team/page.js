@@ -63,11 +63,12 @@ function TeamPageContent() {
   const statusColors = {
     'Completed': 'bg-green-100 text-green-700',
     'In Progress': 'bg-blue-100 text-blue-700',
-    'Pending Review': 'bg-amber-100 text-amber-700',
+    'Implemented': 'bg-teal-100 text-teal-700',
     'Blocked': 'bg-red-100 text-red-700',
     'To Be Started': 'bg-gray-100 text-gray-600',
     'Recurring': 'bg-purple-100 text-purple-700',
   }
+
 
   const serviceSections = [
     { key: 'seo', label: 'SEO' },

@@ -40,7 +40,7 @@ import {
   STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, CONTENT_INTERNAL_APPROVALS, REPORT_TYPES, SERVICE_TYPES,
   OUTLINE_STATUSES, TOPIC_APPROVALS, BLOG_APPROVALS, BLOG_STATUSES, INTERN_STATUSES,
   statusColors, priorityColors, approvalColors, topicApprovalColors, blogStatusColors, internalApprovalColors, internStatusColors,
-  TASK_COLUMN_WIDTHS, CONTENT_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS
+  TASK_COLUMN_WIDTHS, CONTENT_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS, STATUS_ORDER
 } from '@/lib/constants'
 
 // Shared components imported from @/components/
@@ -638,7 +638,17 @@ function ClientDetailPageContent() {
     })
   }
 
-  const sortedTasks = useMemo(() => sortRows(allTasks, taskSortConfig, getTaskSortableValue), [allTasks, taskSortConfig, memberMap])
+  const sortedTasks = useMemo(() => {
+    if (taskSortConfig.field) return sortRows(allTasks, taskSortConfig, getTaskSortableValue)
+    // Default order when no column sort is active: Completed → In Progress → To Be Started → Implemented → Blocked → others
+    return [...allTasks].sort((a, b) => {
+      const ai = STATUS_ORDER.indexOf(a?.status || '')
+      const bi = STATUS_ORDER.indexOf(b?.status || '')
+      const aIdx = ai === -1 ? STATUS_ORDER.length : ai
+      const bIdx = bi === -1 ? STATUS_ORDER.length : bi
+      return aIdx - bIdx
+    })
+  }, [allTasks, taskSortConfig, memberMap])
   const sortedContent = useMemo(() => sortRows(allContent, contentSortConfig, getContentSortableValue), [allContent, contentSortConfig])
   const approvalCount = useMemo(() => allTasks.filter(t => t?.client_approval === 'Approved').length, [allTasks])
   const changesCount = useMemo(() => allTasks.filter(t => t?.client_approval === 'Required Changes' || t?.client_approval === 'Changes Required').length, [allTasks])

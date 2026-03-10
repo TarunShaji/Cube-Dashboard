@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
@@ -272,6 +272,20 @@ export default function ClientPortalPage() {
   const [addingResource, setAddingResource] = useState(false)
   const [portalService, setPortalService] = useState('seo')
   const [activeTab, setActiveTab] = useState('progress')
+  const [taskSortCol, setTaskSortCol] = useState(null)
+  const [taskSortDir, setTaskSortDir] = useState('asc')
+
+  const handleTaskSort = (col) => {
+    if (taskSortCol === col) {
+      setTaskSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setTaskSortCol(col)
+      setTaskSortDir('asc')
+    }
+  }
+
+  // STATUS_ORDER for default sort
+  const STATUS_ORDER = ['Completed', 'In Progress', 'To Be Started', 'Implemented', 'Blocked', 'None', 'Pending Review', '']
 
   const portalFetcher = async ([url, pwd]) => {
     const headers = { 'Content-Type': 'application/json' }
@@ -374,6 +388,41 @@ export default function ClientPortalPage() {
   const handleApprovalUpdate = (taskId, val) => handleUpdate('task', taskId, 'client_approval', val)
   const handleContentApprovalUpdate = (contentId, field, val) => handleUpdate('content', contentId, field, val)
 
+  // currentTasks MUST be a useMemo before early returns (Rules of Hooks)
+  const currentTasks = useMemo(() => {
+    const raw = safeArray(tasks).filter(t => t.service === portalService)
+    if (!taskSortCol) {
+      return [...raw].sort((a, b) => {
+        const ai = STATUS_ORDER.indexOf(a?.status || '')
+        const bi = STATUS_ORDER.indexOf(b?.status || '')
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
+      })
+    }
+    const factor = taskSortDir === 'asc' ? 1 : -1
+    return [...raw].sort((a, b) => {
+      if (taskSortCol === 'status') {
+        const ai = STATUS_ORDER.indexOf(a?.status || '')
+        const bi = STATUS_ORDER.indexOf(b?.status || '')
+        return ((ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)) * factor
+      }
+      if (taskSortCol === 'eta') {
+        const aDate = new Date(a?.eta_end || a?.campaign_live_date || 0).getTime() || 0
+        const bDate = new Date(b?.eta_end || b?.campaign_live_date || 0).getTime() || 0
+        return (aDate - bDate) * factor
+      }
+      if (taskSortCol === 'approval') {
+        const APPR_ORDER = { 'Approved': 0, 'Required Changes': 1, 'Pending Review': 2 }
+        return ((APPR_ORDER[a?.client_approval] ?? 3) - (APPR_ORDER[b?.client_approval] ?? 3)) * factor
+      }
+      if (taskSortCol === 'link') {
+        const av = a?.client_link_visible && a?.link_url ? 0 : 1
+        const bv = b?.client_link_visible && b?.link_url ? 0 : 1
+        return (av - bv) * factor
+      }
+      return 0
+    })
+  }, [tasks, portalService, taskSortCol, taskSortDir])
+
   const addResourceFromPortal = async (e) => {
     e.preventDefault()
     if (!resourceForm.name.trim() || !resourceForm.url.trim()) return
@@ -436,8 +485,7 @@ export default function ClientPortalPage() {
   )
   if (!progressData) return null
 
-  // data is already destructured into client and reports above
-  const currentTasks = safeArray(tasks).filter(t => t.service === portalService)
+  // currentTasks already computed above as useMemo
   const completed = currentTasks.filter(t => t?.status === 'Completed').length
   const progress = currentTasks.length > 0 ? Math.round((completed / currentTasks.length) * 100) : 0
   const approved = currentTasks.filter(t => t?.client_approval === 'Approved').length
@@ -518,6 +566,7 @@ export default function ClientPortalPage() {
 
           {/* ── Progress Tab ────────────────────────────────────────────── */}
           <TabsContent value="progress">
+            {/* ── Service switcher — prominent pill buttons ── */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 px-1">
               <div className="flex items-center gap-4">
                 <p className="text-xs text-gray-500 mr-2">Your approval:</p>
@@ -529,21 +578,25 @@ export default function ClientPortalPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-500">Service:</span>
-                <Select value={portalService} onValueChange={setPortalService}>
-                  <SelectTrigger className="h-8 w-[140px] text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="seo" className="text-xs">SEO Tasks</SelectItem>
-                    <SelectItem value="email" className="text-xs">Email Tasks</SelectItem>
-                    <SelectItem value="paid" className="text-xs">Paid Ads Tasks</SelectItem>
-                  </SelectContent>
-                </Select>
+                <span className="text-xs font-semibold text-gray-500">Switch Service:</span>
+                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
+                  {[['seo', 'SEO Tasks'], ['email', 'Email Tasks'], ['paid', 'Paid Ads']].map(([val, label]) => (
+                    <button
+                      key={val}
+                      onClick={() => setPortalService(val)}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${portalService === val
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'text-gray-500 hover:text-gray-800 hover:bg-white'
+                        }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {filteredTasks.length === 0 ? (
+            {currentTasks.length === 0 ? (
               <div className="text-center py-16 text-gray-400">No tasks yet.</div>
             ) : (
               <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
@@ -551,15 +604,39 @@ export default function ClientPortalPage() {
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100">
                       <th className="text-left px-5 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.title }}>Task</th>
-                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.status }}>Status</th>
-                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.eta }}>{portalService === 'email' ? 'Campaign Live' : 'ETA End'}</th>
+                      <th
+                        className="text-left px-4 py-2 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
+                        style={{ width: TASK_COLUMN_WIDTHS.status }}
+                        onClick={() => handleTaskSort('status')}
+                      >
+                        Status {taskSortCol === 'status' ? (taskSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
+                      </th>
+                      <th
+                        className="text-left px-4 py-2 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
+                        style={{ width: TASK_COLUMN_WIDTHS.eta }}
+                        onClick={() => handleTaskSort('eta')}
+                      >
+                        {portalService === 'email' ? 'Campaign Live' : 'ETA End'} {taskSortCol === 'eta' ? (taskSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
+                      </th>
                       <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.client_feedback || '200px' }}>Notes</th>
-                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.link }}>Link</th>
-                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.client_approval }}>Your Approval</th>
+                      <th
+                        className="text-left px-4 py-2 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
+                        style={{ width: TASK_COLUMN_WIDTHS.link }}
+                        onClick={() => handleTaskSort('link')}
+                      >
+                        Link {taskSortCol === 'link' ? (taskSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
+                      </th>
+                      <th
+                        className="text-left px-4 py-2 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
+                        style={{ width: TASK_COLUMN_WIDTHS.client_approval }}
+                        onClick={() => handleTaskSort('approval')}
+                      >
+                        Your Approval {taskSortCol === 'approval' ? (taskSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {safeArray(filteredTasks).map(task => (
+                    {safeArray(currentTasks).map(task => (
                       <tr key={task?.id} className="hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0">
                         <td className="px-5 py-4 font-medium text-gray-800 text-sm truncate" title={task?.title}>{task?.title}</td>
                         <td className="px-4 py-4 overflow-hidden">

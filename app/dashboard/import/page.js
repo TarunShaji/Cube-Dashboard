@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import useSWR from 'swr'
 import { apiFetch, swrFetcher } from '@/lib/middleware/auth'
 import { safeArray } from '@/lib/safe'
@@ -164,6 +164,26 @@ function ImportShell({
   customPreview,
 }) {
   const [pasteMode, setPasteMode] = useState(false)
+  const [clientSearch, setClientSearch] = useState('')
+  const [showClientList, setShowClientList] = useState(false)
+  const clientDropRef = useRef(null)
+
+  const filteredClients = safeArray(clients).filter(c =>
+    !clientSearch.trim() ||
+    c?.name?.toLowerCase().includes(clientSearch.trim().toLowerCase())
+  )
+
+  const selectedClientName = safeArray(clients).find(c => c.id === selectedClient)?.name || ''
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (clientDropRef.current && !clientDropRef.current.contains(e.target)) {
+        setShowClientList(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -196,15 +216,39 @@ function ImportShell({
               <p className="text-xs text-red-700">{parseError}</p>
             </div>
           )}
-          <div>
+          <div ref={clientDropRef}>
             <label className="text-sm font-medium">Target Client *</label>
-            <Select value={selectedClient} onValueChange={setSelectedClient}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Select client" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Select a client…</SelectItem>
-                {safeArray(clients).map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            {/* Searchable combobox */}
+            <div className="relative mt-1">
+              <Input
+                value={showClientList ? clientSearch : selectedClientName}
+                onChange={e => { setClientSearch(e.target.value); setShowClientList(true) }}
+                onFocus={() => { setClientSearch(''); setShowClientList(true) }}
+                placeholder={selectedClientName || 'Search clients...'}
+                className="mt-0"
+              />
+              {showClientList && (
+                <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                  {filteredClients.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-gray-400">No clients found</div>
+                  ) : filteredClients.map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedClient(c.id)
+                        setClientSearch('')
+                        setShowClientList(false)
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors ${selectedClient === c.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                        }`}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex gap-4">
             <Button

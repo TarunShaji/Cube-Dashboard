@@ -198,7 +198,6 @@ function DashboardPageContent() {
                 <th className="text-left px-4 py-3 font-semibold text-gray-600" title="TPL: Assigned member">TPL</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600" title="CPL: Assigned member">CPL</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Active Tasks</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Pending Approval</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Email</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Portal</th>
                 <th className="px-4 py-3"></th>
@@ -207,7 +206,7 @@ function DashboardPageContent() {
             <tbody className="divide-y divide-gray-50">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
                     {clientList.length === 0 ? 'No clients yet. Add your first client!' : 'No clients match your search.'}
                   </td>
                 </tr>
@@ -258,15 +257,6 @@ function DashboardPageContent() {
 
                   {/* Active Tasks */}
                   <td className="px-4 py-3 text-gray-700">{client.task_count || 0}</td>
-
-                  {/* Pending Approval */}
-                  <td className="px-4 py-3">
-                    {(client.approval_count || 0) > 0 ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                        {client.approval_count} pending
-                      </span>
-                    ) : <span className="text-gray-300">—</span>}
-                  </td>
 
                   {/* Email */}
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
