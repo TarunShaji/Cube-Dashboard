@@ -47,11 +47,16 @@ export async function GET(request) {
             query.title = { $regex: search, $options: 'i' }
         }
 
+        // Sort params
+        const sortBy = url.searchParams.get('sort_by')
+        const sortDir = url.searchParams.get('sort_dir') === 'desc' ? -1 : 1
+        const sortStage = sortBy ? { [sortBy]: sortDir } : { position: 1, created_at: -1 }
+
         const collection = database.collection('email_tasks')
         const [total, tasks] = await Promise.all([
             collection.countDocuments(query),
             collection.find(query)
-                .sort({ position: 1, created_at: -1 })
+                .sort(sortStage)
                 .skip(skip)
                 .limit(limit)
                 .toArray()

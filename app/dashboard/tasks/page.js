@@ -73,21 +73,21 @@ function TasksPageContent() {
         return {
           endpoint: '/api/email-tasks',
           label: 'Email Tasks',
-          columns: ['serial', 'selection', 'client', 'title', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'campaign_live', 'live_data', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['serial', 'selection', 'client', 'title', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'campaign_live', 'live_data', 'client_approval', 'client_feedback', 'comments', 'actions'],
           widths: EMAIL_COLUMN_WIDTHS
         }
       case 'paid':
         return {
           endpoint: '/api/paid-tasks',
           label: 'Paid Ads Tasks',
-          columns: ['serial', 'selection', 'client', 'title', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['serial', 'selection', 'client', 'title', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'comments', 'actions'],
           widths: PAID_COLUMN_WIDTHS
         }
       default:
         return {
           endpoint: '/api/tasks',
           label: 'SEO Tasks',
-          columns: ['serial', 'selection', 'client', 'title', 'category', 'status', 'priority', 'eta', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['serial', 'selection', 'client', 'title', 'category', 'status', 'priority', 'eta', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'comments', 'actions'],
           widths: TASK_COLUMN_WIDTHS
         }
     }
@@ -143,8 +143,8 @@ function TasksPageContent() {
 
     const params = new URLSearchParams(searchParams.toString())
     params.delete('service') // API doesn't need the service param, it's in the URL
-    params.delete('sort_by')
-    params.delete('sort_dir')
+    // NOTE: sort_by/sort_dir are intentionally NOT removed — the API sorts MongoDB-side
+    // so that sort applies to the full dataset across all pages, not just the current page.
     params.set('enrich', '0')
     if (!params.get('limit')) params.set('limit', '50')
 
@@ -470,7 +470,7 @@ function TasksPageContent() {
                   value={task.internal_approval || 'Pending'}
                   type="internal_approval"
                   options={INTERNAL_APPROVALS}
-                  disabled={task.status !== 'Completed'}
+                  disabled={task.status !== 'Completed' && task.status !== 'Implemented'}
                   onSave={v => updateTask(task.id, 'internal_approval', v)}
                 />
               )}
@@ -482,7 +482,7 @@ function TasksPageContent() {
                   variant={task.client_link_visible ? "ghost" : "default"}
                   className={`h-7 px-2 text-[10px] uppercase tracking-wider font-bold ${task.client_link_visible ? 'text-green-600' : ''}`}
                   disabled={
-                    task.status !== 'Completed' ||
+                    (task.status !== 'Completed' && task.status !== 'Implemented') ||
                     task.internal_approval !== 'Approved' ||
                     !task.link_url ||
                     task.client_link_visible === true
@@ -502,6 +502,21 @@ function TasksPageContent() {
                   ) : <span className="text-gray-300 text-xs">—</span>}
                 </div>
               )}
+              {colId === 'comments' && (
+                <div
+                  className="cursor-pointer px-1 py-0.5 rounded hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 transition-all min-h-[24px] max-w-[200px] overflow-hidden"
+                  title={task.comments || 'Click to add description'}
+                  onClick={() => {
+                    const current = task.comments || ''
+                    const next = prompt('Task description / comments:', current)
+                    if (next !== null && next !== current) updateTask(task.id, 'comments', next || null)
+                  }}
+                >
+                  {task.comments
+                    ? <span className="text-xs text-gray-600 line-clamp-2 block">{task.comments}</span>
+                    : <span className="text-gray-300 text-xs">Add description...</span>}
+                </div>
+              )}
               {colId === 'actions' && (
                 <button onClick={() => deleteTask(task?.id)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-red-400 transition-all">
                   <Trash2 className="w-3.5 h-3.5" />
@@ -515,10 +530,10 @@ function TasksPageContent() {
   }
 
   const columnLabels = {
-    selection: '', client: 'Client', title: 'Task', category: 'Category', status: 'Status', priority: 'Priority',
+    selection: '', serial: '#', client: 'Client', title: 'Task', category: 'Category', status: 'Status', priority: 'Priority',
     eta: 'ETA End', assigned: 'Assigned', link: 'Link', internal_approval: 'Internal Approval', send_link: 'Send Link',
     campaign_live: 'Campaign Live', live_data: 'Live Data',
-    client_approval: 'Client Approval', client_feedback: 'Client Feedback', actions: ''
+    client_approval: 'Client Approval', client_feedback: 'Client Feedback', comments: 'Comments', actions: ''
   }
   const columnSortFields = {
     client: 'client_name',
@@ -533,7 +548,8 @@ function TasksPageContent() {
     campaign_live: 'campaign_live_date',
     live_data: 'live_data',
     client_approval: 'client_approval',
-    client_feedback: 'client_feedback_note'
+    client_feedback: 'client_feedback_note',
+    comments: 'comments'
   }
 
   return (

@@ -9,7 +9,7 @@ import { safeURL, safeJSON, safeArray } from '@/lib/safe'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Pagination } from '@/components/shared/Pagination'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,6 +45,36 @@ import {
 
 // Shared components imported from @/components/
 
+/** CommentsModal — expands task description/comments in a large textarea dialog */
+function CommentsModal({ taskId, value, onClose, onSave }) {
+  const [localComment, setLocalComment] = useState(value)
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Task Description / Comments</DialogTitle>
+          <DialogDescription>Add or edit a description for this task. Ctrl+Enter to save quickly.</DialogDescription>
+        </DialogHeader>
+        <textarea
+          autoFocus
+          value={localComment}
+          onChange={e => setLocalComment(e.target.value)}
+          rows={10}
+          placeholder="Write a description, notes, or comments about this task..."
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y"
+          onKeyDown={e => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { onSave(localComment || null); onClose() }
+          }}
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => { onSave(localComment || null); onClose() }}>Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 function ClientDetailPageContent() {
   const { id } = useParams()
@@ -68,21 +98,21 @@ function ClientDetailPageContent() {
         return {
           endpoint: '/api/email-tasks',
           label: 'Email Tasks',
-          columns: ['selection', 'title', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'campaign_live', 'live_data', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['selection', 'title', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'campaign_live', 'live_data', 'client_approval', 'client_feedback', 'comments', 'actions'],
           widths: EMAIL_COLUMN_WIDTHS
         }
       case 'paid':
         return {
           endpoint: '/api/paid-tasks',
           label: 'Paid Ads Tasks',
-          columns: ['selection', 'title', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['selection', 'title', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'comments', 'actions'],
           widths: PAID_COLUMN_WIDTHS
         }
       default:
         return {
           endpoint: '/api/tasks',
           label: 'SEO Tasks',
-          columns: ['selection', 'title', 'category', 'status', 'priority', 'eta', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['selection', 'title', 'category', 'status', 'priority', 'eta', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'comments', 'actions'],
           widths: TASK_COLUMN_WIDTHS
         }
     }
@@ -189,6 +219,8 @@ function ClientDetailPageContent() {
   const taskSortConfig = useMemo(() => ({ field: tSortBy || null, direction: tSortDir }), [tSortBy, tSortDir])
   const contentSortConfig = useMemo(() => ({ field: cSortBy || null, direction: cSortDir }), [cSortBy, cSortDir])
   const addContentInputRef = useRef(null)
+  // Comments modal state
+  const [commentsModal, setCommentsModal] = useState(null) // { taskId, value }
 
   useEffect(() => {
     const savedTasks = localStorage.getItem(`client_tasks_col_order_${tService}`)
@@ -881,7 +913,7 @@ function ClientDetailPageContent() {
                     value={task.internal_approval || 'Pending'}
                     type="internal_approval"
                     options={INTERNAL_APPROVALS}
-                    disabled={task.status !== 'Completed'}
+                    disabled={task.status !== 'Completed' && task.status !== 'Implemented'}
                     onSave={v => updateTask(task.id, 'internal_approval', v)}
                   />
                 )
@@ -895,7 +927,7 @@ function ClientDetailPageContent() {
                     variant={task.client_link_visible ? "ghost" : "default"}
                     className={`h-7 px-2 text-[10px] uppercase tracking-wider font-bold ${task.client_link_visible ? 'text-green-600' : ''}`}
                     disabled={
-                      task.status !== 'Completed' ||
+                      (task.status !== 'Completed' && task.status !== 'Implemented') ||
                       task.internal_approval !== 'Approved' ||
                       !task.link_url ||
                       task.client_link_visible === true
@@ -914,6 +946,17 @@ function ClientDetailPageContent() {
                       {task.client_feedback_note}
                     </div>
                   ) : <span className="text-gray-300 text-xs">—</span>}
+                </div>
+              )}
+              {colId === 'comments' && (
+                <div
+                  className="cursor-pointer px-1 py-0.5 rounded hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 transition-all min-h-[24px] max-w-[200px] overflow-hidden"
+                  onClick={() => setCommentsModal({ taskId: task.id, value: task.comments || '' })}
+                  title={task.comments || 'Click to add description'}
+                >
+                  {task.comments
+                    ? <span className="text-xs text-gray-600 line-clamp-2 block">{task.comments}</span>
+                    : <span className="text-gray-300 text-xs">Add description...</span>}
                 </div>
               )}
               {colId === 'actions' && (
@@ -1062,7 +1105,7 @@ function ClientDetailPageContent() {
     title: 'Task', category: 'Category', status: 'Status', priority: 'Priority',
     eta: 'ETA End', assigned: 'Assigned', link: 'Link', internal_approval: 'Internal Approval',
     campaign_live: 'Campaign Live', live_data: 'Live Data',
-    send_link: 'Send Link', client_approval: 'Client Approval', client_feedback: 'Feedback', actions: ''
+    send_link: 'Send Link', client_approval: 'Client Approval', client_feedback: 'Feedback', comments: 'Comments', actions: ''
   }
   const taskSortFields = {
     title: 'title',
@@ -1076,7 +1119,8 @@ function ClientDetailPageContent() {
     campaign_live: 'campaign_live_date',
     live_data: 'live_data',
     client_approval: 'client_approval',
-    client_feedback: 'client_feedback_note'
+    client_feedback: 'client_feedback_note',
+    comments: 'comments'
   }
 
   const contentColLabels = {
@@ -1716,7 +1760,17 @@ function ClientDetailPageContent() {
         </DialogContent>
       </Dialog>
       <ConfirmDialog config={confirmConfig} onClose={() => setConfirmConfig(null)} />
+
+      {commentsModal && (
+        <CommentsModal
+          taskId={commentsModal.taskId}
+          value={commentsModal.value}
+          onClose={() => setCommentsModal(null)}
+          onSave={(val) => updateTask(commentsModal.taskId, 'comments', val)}
+        />
+      )}
     </div>
+
   )
 }
 

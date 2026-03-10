@@ -33,10 +33,39 @@ export function EditableCell({ value, type = 'text', options = [], onSave, place
                 </Select>
             )
         }
+        if (type === 'date') {
+            return (
+                <div className="flex flex-col gap-1">
+                    <input
+                        ref={inputRef}
+                        type="date"
+                        value={val}
+                        onChange={e => setVal(e.target.value)}
+                        onBlur={save}
+                        onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { setVal(value || ''); setEditing(false) } }}
+                        className="w-full px-2 py-1 text-xs border border-blue-400 rounded shadow-sm bg-white focus:outline-none min-w-[80px]"
+                    />
+                    {val && (
+                        <button
+                            type="button"
+                            onMouseDown={e => {
+                                e.preventDefault()
+                                setEditing(false)
+                                setVal('')
+                                onSave(null)
+                            }}
+                            className="text-[10px] text-red-400 hover:text-red-600 text-left px-1 flex items-center gap-0.5 transition-colors"
+                        >
+                            × Clear date
+                        </button>
+                    )}
+                </div>
+            )
+        }
         return (
             <input
                 ref={inputRef}
-                type={type === 'date' ? 'date' : 'text'}
+                type="text"
                 value={val}
                 onChange={e => setVal(e.target.value)}
                 onBlur={save}
