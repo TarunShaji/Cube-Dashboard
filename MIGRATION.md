@@ -97,8 +97,7 @@ sudo usermod -aG docker ec2-user
    cp .env.example .env
    ```
 2. **Configure `.env`**:
-   Ensure `MONGO_URL` includes these critical production flags:
-   `?tls=true&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false&authMechanism=SCRAM-SHA-1&authSource=admin`
+   Ensure `MONGO_URL` and `MONGO_CA_PATH` are set correctly. Your `.env` should look like the new `.env.example`.
 3. **Build & Run**:
    ```bash
    docker build -t cubehq-app --build-arg NEXT_PUBLIC_BASE_URL=https://dashboard.cubehq.ai .

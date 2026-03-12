@@ -78,11 +78,12 @@ nano .env
 DocumentDB requires specific parameters in the `MONGO_URL`. Your `.env` should look like this:
 ```env
 # Change placeholders to your actual DocumentDB endpoint/credentials
-MONGO_URL=mongodb://<USER>:<PASS>@<ENDPOINT>:27017/<DB>?tls=true&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false&authMechanism=SCRAM-SHA-1&authSource=admin
+MONGO_URL=mongodb://<USER>:<PASS>@<ENDPOINT>:27017/dashboard?tls=true&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false&authMechanism=SCRAM-SHA-1&authSource=admin
 DB_NAME=dashboard
+# Path to your CA bundle (already in repo)
 MONGO_CA_PATH=./rds-combined-ca-bundle.pem
 JWT_SECRET=your_long_random_string
-NEXT_PUBLIC_BASE_URL=http://<EC2_PUBLIC_IP>:3000
+NEXT_PUBLIC_BASE_URL=https://dashboard.cubehq.ai
 ```
 
 ### 5. Deployment (Docker)
