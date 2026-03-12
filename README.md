@@ -35,6 +35,9 @@ Secure, slug-based portals where clients can view live progress, approve deliver
 ---
 ## ☁️ AWS Production Deployment (EC2 + DocumentDB)
 
+> [!IMPORTANT]
+> **For a complete, step-by-step migration roadmap (including data transfer and SSL setup), please refer to [MIGRATION.md](./MIGRATION.md).**
+
 Follow these steps to deploy to a fresh AWS environment.
 
 ### 1. Database Setup (DocumentDB)

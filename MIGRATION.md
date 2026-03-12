@@ -30,6 +30,9 @@ Before moving, take a snapshot of your current data.
 mongodump --uri="mongodb+srv://<USER>:<PASS>@<ATLAS_HOST>/<DB_NAME>" --out=./atlas_backup
 ```
 
+> [!NOTE]
+> A recent backup is already included in the repository at `atlas_backup/agency_dashboard/`.
+
 ---
 
 ## 3. Infrastructure Setup (AWS Console)
@@ -70,6 +73,7 @@ sudo usermod -aG docker ec2-user
    ```
 2. **Transfer Backup**: Upload your `atlas_backup` folder to the EC2 instance using `scp`.
 3. **Import**:
+   Run this command from the folder containing the backup:
    ```bash
    mongorestore --host="<docdb-endpoint>:27017" \
      --ssl \
@@ -77,7 +81,9 @@ sudo usermod -aG docker ec2-user
      --username=<USER> \
      --password=<PASS> \
      --authenticationDatabase=admin \
-     ./atlas_backup
+     --nsFrom "agency_dashboard.*" \
+     --nsTo "dashboard.*" \
+     ./atlas_backup/agency_dashboard
    ```
 
 ---
