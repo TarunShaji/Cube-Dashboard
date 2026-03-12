@@ -45,7 +45,6 @@ RUN adduser  --system --uid 1001 nextjs
 # Copy the standalone output (self-contained server, no node_modules needed)
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
 
 # Set correct ownership
 RUN chown -R nextjs:nodejs /app
