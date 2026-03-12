@@ -113,3 +113,17 @@ We use **SWR** to manage server state.
 ### Quality Assurance
 - **Build Check**: Always run `npm run build` before pushing.
 - **Schema Validation**: Zod schemas are enforced in API routes via `validateBody(...)` middleware.
+
+---
+
+## 8. Infrastructure & Compatibility (AWS DocumentDB)
+
+While the application is MongoDB-compatible, it is optimized for **AWS DocumentDB**, which has specific limitations:
+
+### Aggregation Constraints
+- **Avoid `$facet`**: DocumentDB does not support the `$facet` operator. Combined calculations (like data + stats in one hit) must be broken into sequential `Promise.all` queries.
+- **Avoid `$lookup`**: Prefer application-level joins (fetching IDs and then enrichment) for better performance and compatibility on managed AWS instances.
+
+### Security & Connectivity
+- **SSL/TLS**: Mandatory for all production connections. The app uses `rds-combined-ca-bundle.pem` and requires `tls=true` in the connection string.
+- **Auth Mechanism**: Explicitly set to `SCRAM-SHA-1` via the `authMechanism` URL parameter to avoid handshake failures with modern drivers.

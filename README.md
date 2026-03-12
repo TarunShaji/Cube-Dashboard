@@ -7,13 +7,8 @@ A high-performance, agency-grade dashboard for managing client tasks, content ca
 ## 🚀 Technical Stack
 
 - **Framework**: [Next.js 14](https://nextjs.org/) (App Router, Node.js Runtime)
-- **Database**: [MongoDB Atlas](https://www.mongodb.com/) (Native Driver)
-- **Authentication**: JWT-based with `httpOnly` secure cookies & Bcrypt hashing
-- **State Management**: [SWR](https://swr.vercel.app/) (Stale-While-Revalidate) for real-time data fetching
-- **UI Architecture**: Tailwind CSS + Radix UI (Headless) + Lucide Icons
-- **Validation**: [Zod](https://zod.dev/) for strict schema enforcement
-- **Invariants**: Custom Lifecycle Engine for atomic state transitions
-
+- **Database**: [AWS DocumentDB](https://aws.amazon.com/documentdb/) (MongoDB Compatible)
+- **Authentication**: JWT-based with `httpOnly` secure cookies (Production: Secure flag handled via protocol check)
 ---
 
 ## 🏗️ Core Architecture & Modules
@@ -30,120 +25,81 @@ Supports high-volume data ingestion from Google Sheets or CSV exports.
 
 ### 3. API Design & Security
 All API routes are standardized for reliability and observability:
-- **Node.js Runtime**: Explicitly enforced across all 30+ endpoints for consistent performance.
+- **DocumentDB Compatibility**: Pure aggregation pipelines (avoiding `$facet`, `$lookup` where possible) to ensure performance on Managed AWS DocumentDB.
 - **Wrappers**: `withAuth` and `withErrorLogging` ensure every request is authenticated and crashes are captured with full stack traces.
 - **Centralized Logging**: Structured server-side logging for request tracing (`[BACKEND] [API_REQ]`).
 
 ### 4. Client Portals (`app/portal/[slug]`)
 Secure, slug-based portals where clients can view live progress, approve deliverables, or request changes.
-- **Password Protection**: Optional per-client password gates.
-- **State Sync**: Real-time feedback loop between the agency dashboard and the client's view.
 
 ---
+## ☁️ AWS Production Deployment (EC2 + DocumentDB)
 
-## 📂 Project Structure
+Follow these steps to deploy to a fresh AWS environment.
 
-```text
-├── app/
-│   ├── api/             # Standardized API routes (Node.js runtime)
-│   ├── dashboard/       # Agency-side views (Tasks, Content, Clients)
-│   └── portal/          # Client-facing white-labeled views
-├── components/
-│   ├── shared/          # App-level reusable components (Pagination, ConfirmDialog…)
-│   ├── table/           # Inline-edit cell components (EditableCell, LinkCell)
-│   └── ui/              # Radix UI / shadcn primitives
-├── lib/
-│   ├── db/              # MongoDB connection + Zod schemas
-│   ├── engine/          # Lifecycle engine — business rules & state transitions
-│   ├── import/          # Normalization & mapping logic for CSV/Sheets import
-│   └── middleware/      # withAuth, withErrorLogging, validation helpers
-├── scripts/             # DB setup & maintenance scripts
-└── DEV.md               # Full technical deep-dive
+### 1. Database Setup (DocumentDB)
+- **Engine**: 5.0 (recommended)
+- **Instance**: `db.t3.medium` (minimum for production clusters)
+- **Connectivity**: Ensure the EC2 instance's Security Group has access to DocumentDB (Port 27017).
+- **TLS**: Required. Download the `rds-combined-ca-bundle.pem` into the project root.
+
+### 2. Server Setup (EC2)
+- **OS**: Amazon Linux 2023
+- **Instance**: `t3.small` (t3.micro may fail during Next.js build)
+- **Security Group**:
+    - Port 22 (SSH)
+    - Port 3000 (Application)
+
+### 3. Software Installation
+Run these on the EC2 instance:
+```bash
+sudo yum update -y
+sudo yum install docker git -y
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
+# Logout and login for permissions to take effect
 ```
 
----
-
-## 🔧 Getting Started (Local Dev — No Docker)
-
-### 1. Environment Configuration
-Create a `.env` file based on `.env.example`:
+### 4. Configuration
+Clone and create the production environment:
 ```bash
-cp .env.example .env
-# Fill in MONGO_URL, JWT_SECRET, NEXT_PUBLIC_BASE_URL
-```
-
-### 2. Installation & Setup
-```bash
-yarn install        # Install dependencies
-yarn setup:db       # Apply indexes and prepare Mongo collections
-```
-
-### 3. Development
-```bash
-yarn dev            # Start the Next.js dev server on port 3000
-```
-
----
-
-## � Docker Deployment
-
-The project ships with a production-ready Docker setup. MongoDB runs on **Atlas** (not containerized).
-
-### Local Docker Run
-```bash
-# 1. Fill in your .env file first (copy from .env.example)
-cp .env.example .env
-
-# 2. Build and start
-docker compose up --build
-```
-The app will be available at `http://localhost:3000`.
-
----
-
-### ☁️ AWS EC2 Deployment
-
-#### Step 1 — Launch an EC2 Instance
-- **OS**: Ubuntu 22.04 LTS
-- **Instance type**: t3.small or larger (t3.micro may OOM during build)
-- **Security Group**: Open inbound ports **22** (SSH) and **3000** (app)
-
-#### Step 2 — Install Docker on the EC2 instance
-```bash
-sudo apt-get update
-sudo apt-get install -y ca-certificates curl gnupg
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker $USER
-newgrp docker
-```
-
-#### Step 3 — Clone the repo and configure environment
-```bash
-git clone https://github.com/YOUR_ORG/YOUR_REPO.git
-cd Dashboard
-
-cp .env.example .env
+git clone https://github.com/TarunShaji/Test.git
+cd Test
 nano .env
-# Set: MONGO_URL, DB_NAME, JWT_SECRET, NEXT_PUBLIC_BASE_URL
 ```
 
-#### Step 4 — Build and run
-```bash
-docker compose up -d --build
+**CRITICAL: Connection String Requirements**
+DocumentDB requires specific parameters in the `MONGO_URL`. Your `.env` should look like this:
+```env
+# Change placeholders to your actual DocumentDB endpoint/credentials
+MONGO_URL=mongodb://<USER>:<PASS>@<ENDPOINT>:27017/<DB>?tls=true&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false&authMechanism=SCRAM-SHA-1&authSource=admin
+DB_NAME=dashboard
+MONGO_CA_PATH=./rds-combined-ca-bundle.pem
+JWT_SECRET=your_long_random_string
+NEXT_PUBLIC_BASE_URL=http://<EC2_PUBLIC_IP>:3000
 ```
 
-#### Step 5 — Verify
+### 5. Deployment (Docker)
+Build the image (passing the public URL for frontend links) and launch:
 ```bash
-docker ps                            # Check container is running
-docker logs cubehq_dashboard -f      # Stream logs
-curl http://localhost:3000            # Smoke test
+# Build
+docker build -t cubehq-app --build-arg NEXT_PUBLIC_BASE_URL=http://<IP>:3000 .
+
+# Launch
+docker run -d \
+  --name cubehq_dashboard \
+  -p 3000:3000 \
+  --env-file .env \
+  --restart unless-stopped \
+  cubehq-app
 ```
 
-#### Updating the app
-```bash
-git pull
-docker compose up -d --build         # Rebuild and restart
-```
+### 📋 Troubleshooting & Maintenance
+- **Logs**: `docker logs -f cubehq_dashboard`
+- **SSL Issues**: Ensure `rds-combined-ca-bundle.pem` is in the root directory during build.
+- **Auth Errors**: Verify `authMechanism=SCRAM-SHA-1` is in your connection string.
+- **Aggregation Errors**: Avoid `$facet`; DocumentDB does not support it.
 
 ---
 
