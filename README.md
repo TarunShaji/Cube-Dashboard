@@ -103,6 +103,47 @@ docker run -d \
 
 ---
 
-## 📄 Documentation Links
+## � Production Hardening (Nginx & SSL)
 
+For a professional rollout (e.g., `dashboard.cubehq.ai`), you should use Nginx as a **Reverse Proxy**.
+
+### 1. DNS Setup
+Point your subdomain (`A Record`) to your EC2 Public IP in your domain registrar (GoDaddy, Route53, etc.).
+
+### 2. Install Nginx & Certbot (on EC2)
+```bash
+sudo yum install nginx certbot python3-certbot-nginx -y
+sudo systemctl start nginx
+sudo systemctl enable nginx
+```
+
+### 3. Nginx Configuration
+Create a config file `/etc/nginx/conf.d/dashboard.conf`:
+```nginx
+server {
+    listen 80;
+    server_name dashboard.cubehq.ai;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+### 4. Enable SSL
+```bash
+sudo certbot --nginx -d dashboard.cubehq.ai
+```
+
+---
+
+## �📄 Documentation Links
+
+- **[Full AWS Migration Guide (MIGRATION.md)](./MIGRATION.md)**: The definitive step-by-step roadmap for developers to replicate this setup (EC2, DocumentDB, Nginx, SSL).
 - **[Technical Deep-Dive (DEV.md)](./DEV.md)**: In-depth analysis of API flows, DB architecture, lifecycle engine, and frontend patterns.
+- **[Data Mapping & Schema (Data.md)](./Data.md)**: Detailed overview of data flow from import to persistence.

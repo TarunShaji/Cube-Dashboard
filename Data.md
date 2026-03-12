@@ -94,4 +94,4 @@ Before any data is written to the database (Initial Import or Edit), it must pas
 3. **Drafting**: `rowToTask` or `rowToContent` transforms raw rows into schema-aligned objects.
 4. **Validation**: The backend API uses **Zod** (`lib/db/schemas`) to strip unknown fields and enforce types.
 5. **Logic**: The API calls `applyTaskTransition` or `applyContentTransition` (from the Lifecycle Engine) to inject defaults and apply business rules.
-6. **Upsert**: MongoDB `bulkWrite` uses a `signature` (SHA-256 of ClientID + Title + Date) to ensure that re-importing the same sheet updates existing items instead of creating duplicates.
+6. **Upsert**: AWS DocumentDB `bulkWrite` uses a `signature` (SHA-256 of ClientID + Title + Date) to ensure that re-importing the same sheet updates existing items instead of creating duplicates.

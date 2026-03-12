@@ -127,3 +127,7 @@ While the application is MongoDB-compatible, it is optimized for **AWS DocumentD
 ### Security & Connectivity
 - **SSL/TLS**: Mandatory for all production connections. The app uses `rds-combined-ca-bundle.pem` and requires `tls=true` in the connection string.
 - **Auth Mechanism**: Explicitly set to `SCRAM-SHA-1` via the `authMechanism` URL parameter to avoid handshake failures with modern drivers.
+
+### Networking & Reverse Proxy
+- **Nginx**: Used as the entry point for production traffic. It terminates SSL and proxies requests to the Next.js standalone server running on `localhost:3000`.
+- **Header Forwarding**: Nginx must be configured to forward the `Host` header to ensure Next.js can correctly handle absolute URL generation for client portal links.
