@@ -47,25 +47,21 @@ export async function GET(request) {
 
         const collection = database.collection('content_items')
 
-        // Single aggregation pipeline with $facet to compute count, stats, and paginated
-        // data in one DB round-trip instead of 3 sequential queries.
-        const sortStage = { $sort: { position: 1, created_at: -1 } }
-        const [facetResult] = await collection.aggregate([
-            { $match: query },
-            {
-                $facet: {
-                    total: [{ $count: 'n' }],
-                    stats: [{ $group: { _id: '$blog_status', count: { $sum: 1 } } }],
-                    page: [sortStage, { $skip: skip }, { $limit: limit }]
-                }
-            }
-        ]).toArray()
-
-        const total = facetResult?.total?.[0]?.n || 0
+        // DocumentDB does not support $facet. Using multiple sequential queries.
+        const total = await collection.countDocuments(query)
         const totalPages = Math.ceil(total / limit)
-        const statsArr = facetResult?.stats || []
+
+        const statsArr = await collection.aggregate([
+            { $match: query },
+            { $group: { _id: '$blog_status', count: { $sum: 1 } } }
+        ]).toArray()
         const statsMap = Object.fromEntries(statsArr.map(s => [s._id, s.count]))
-        const content = facetResult?.page || []
+
+        const content = await collection.find(query)
+            .sort({ position: 1, created_at: -1 })
+            .skip(skip)
+            .limit(limit)
+            .toArray()
 
         const clean = safeArray(content).map(({ _id, ...c }) => c)
 
