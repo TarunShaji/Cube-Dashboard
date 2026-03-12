@@ -22,16 +22,16 @@ This document provides a complete, step-by-step roadmap for migrating the CubeHQ
 
 ---
 
-## 2. Data Export (from MongoDB Atlas)
-Before moving, take a snapshot of your current data.
+## 2. Database Backup (Pre-included in Repo)
+> [!IMPORTANT]
+> **A complete snapshot of the data is already included in this repository at `atlas_backup/agency_dashboard/`.**
+> You do NOT need to run Step 2 unless you want a newer snapshot from the Atlas database.
 
+### Optional: Manual Export (if fresh data is needed)
 ```bash
-# Export data into a local folder called 'atlas_backup'
+# Export fresh data into a local folder
 mongodump --uri="mongodb+srv://<USER>:<PASS>@<ATLAS_HOST>/<DB_NAME>" --out=./atlas_backup
 ```
-
-> [!NOTE]
-> A recent backup is already included in the repository at `atlas_backup/agency_dashboard/`.
 
 ---
 
@@ -92,8 +92,8 @@ sudo usermod -aG docker ec2-user
 
 1. **Clone & Configure**:
    ```bash
-   git clone <REPO_URL>
-   cd Dashboard
+   git clone https://github.com/cubehq-ai/CubeHQ-Dashboard.git
+   cd CubeHQ-Dashboard
    cp .env.example .env
    ```
 2. **Configure `.env`**:

@@ -67,8 +67,10 @@ sudo usermod -aG docker ec2-user
 ### 4. Configuration
 Clone and create the production environment:
 ```bash
-git clone https://github.com/TarunShaji/Test.git
-cd Test
+git clone https://github.com/cubehq-ai/CubeHQ-Dashboard.git
+cd CubeHQ-Dashboard
+
+cp .env.example .env
 nano .env
 ```
 
