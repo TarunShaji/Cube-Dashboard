@@ -7,7 +7,7 @@ import { getUser, logout } from '@/lib/middleware/auth'
 import { safeArray } from '@/lib/safe'
 import {
   LayoutDashboard, Users, CheckSquare, BarChart3,
-  Upload, Menu, X, LogOut, ChevronRight, UserCircle, FolderOpen, FileText, Search, Mail, TrendingUp
+  Upload, Menu, X, LogOut, ChevronRight, UserCircle, FolderOpen, FileText, Search, Mail, TrendingUp, Share2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +17,7 @@ const navItems = [
   { href: '/dashboard/tasks?service=seo', label: 'SEO Tasks', icon: Search },
   { href: '/dashboard/tasks?service=email', label: 'Email Tasks', icon: Mail },
   { href: '/dashboard/tasks?service=paid', label: 'Paid Ads Tasks', icon: TrendingUp },
+  { href: '/dashboard/tasks?service=social', label: 'Social Media', icon: Share2 },
   { href: '/dashboard/content', label: 'Content Calendar', icon: FileText },
   { href: '/dashboard/team', label: 'Team', icon: UserCircle },
   { href: '/dashboard/reports', label: 'Reports', icon: BarChart3 },

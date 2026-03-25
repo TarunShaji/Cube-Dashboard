@@ -369,6 +369,7 @@ export default function ClientPortalPage() {
       const srv = client.service_type.toLowerCase()
       if (srv.includes('email')) setPortalService('email')
       else if (srv.includes('paid')) setPortalService('paid')
+      else if (srv.includes('social')) setPortalService('social')
       else setPortalService('seo')
     }
   }, [client])
@@ -422,6 +423,16 @@ export default function ClientPortalPage() {
       return 0
     })
   }, [tasks, portalService, taskSortCol, taskSortDir])
+
+  // Sort content calendar by blog_status: Sent for Approval first, then Draft, In Progress, Published, Rejected
+  const BLOG_STATUS_ORDER = ['Sent for Approval', 'Draft', 'In Progress', 'Published', 'Rejected']
+  const sortedContent = useMemo(() => {
+    return [...safeArray(content)].sort((a, b) => {
+      const ai = BLOG_STATUS_ORDER.indexOf(a?.blog_status || '')
+      const bi = BLOG_STATUS_ORDER.indexOf(b?.blog_status || '')
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
+    })
+  }, [content])
 
   const addResourceFromPortal = async (e) => {
     e.preventDefault()
@@ -539,7 +550,7 @@ export default function ClientPortalPage() {
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-gray-500">Switch Service:</span>
                 <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
-                  {[['seo', 'SEO Tasks'], ['email', 'Email Tasks'], ['paid', 'Paid Ads']].map(([val, label]) => (
+                  {[['seo', 'SEO Tasks'], ['email', 'Email Tasks'], ['paid', 'Paid Ads'], ['social', 'Social Media']].map(([val, label]) => (
                     <button
                       key={val}
                       onClick={() => setPortalService(val)}
@@ -575,7 +586,7 @@ export default function ClientPortalPage() {
                         style={{ width: TASK_COLUMN_WIDTHS.eta }}
                         onClick={() => handleTaskSort('eta')}
                       >
-                        {portalService === 'email' ? 'Campaign Live' : 'ETA End'} {taskSortCol === 'eta' ? (taskSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
+                        {portalService === 'email' ? 'Campaign Live' : (portalService === 'social' ? 'Live Date' : 'ETA End')} {taskSortCol === 'eta' ? (taskSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
                       </th>
                       <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.client_feedback || '200px' }}>Feedback</th>
                       <th
@@ -603,7 +614,7 @@ export default function ClientPortalPage() {
                             {task?.status}
                           </span>
                         </td>
-                        <td className="px-4 py-4 text-xs text-gray-500 truncate">{task?.eta_end || task?.campaign_live_date || task?.campaign_live || '—'}</td>
+                        <td className="px-4 py-4 text-xs text-gray-500 truncate">{task?.eta_end || task?.campaign_live_date || task?.live_date || task?.campaign_live || '—'}</td>
                         <td className="px-4 py-4 text-xs text-gray-500 truncate" title={task?.client_approval === 'Required Changes' ? task?.client_feedback_note : (task?.remarks || '')}>
                           {task?.client_approval === 'Required Changes' ? task?.client_feedback_note : (task?.remarks || '—')}
                         </td>
@@ -665,7 +676,7 @@ export default function ClientPortalPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {safeArray(content).map(item => (
+                    {sortedContent.map(item => (
                       <tr key={item?.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
                           <p className="font-medium text-gray-800 text-sm">{item?.blog_title}</p>

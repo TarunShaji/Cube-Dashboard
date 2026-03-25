@@ -51,7 +51,7 @@ export async function GET(request, { params }) {
         const fetchPromises = {}
 
         if (include.has('tasks')) {
-            // All 3 service collections in parallel
+            // All 4 service collections in parallel
             fetchPromises.seoTasks = (service === 'seo' || service === 'all')
                 ? database.collection('tasks').find({ client_id: clientData.id }).sort({ category: 1, created_at: 1 }).toArray()
                 : Promise.resolve([])
@@ -60,6 +60,9 @@ export async function GET(request, { params }) {
                 : Promise.resolve([])
             fetchPromises.paidTasks = (service === 'paid' || service === 'all')
                 ? database.collection('paid_tasks').find({ client_id: clientData.id }).sort({ created_at: 1 }).toArray()
+                : Promise.resolve([])
+            fetchPromises.socialTasks = (service === 'social' || service === 'all')
+                ? database.collection('social_tasks').find({ client_id: clientData.id }).sort({ created_at: 1 }).toArray()
                 : Promise.resolve([])
         }
 
@@ -84,7 +87,8 @@ export async function GET(request, { params }) {
             const seoTasks = safeArray(resolved.seoTasks).map(({ _id, ...t }) => ({ ...t, service: 'seo' }))
             const emailTasks = safeArray(resolved.emailTasks).map(({ _id, ...t }) => ({ ...t, service: 'email' }))
             const paidTasks = safeArray(resolved.paidTasks).map(({ _id, ...t }) => ({ ...t, service: 'paid' }))
-            response.tasks = [...seoTasks, ...emailTasks, ...paidTasks]
+            const socialTasks = safeArray(resolved.socialTasks).map(({ _id, ...t }) => ({ ...t, service: 'social' }))
+            response.tasks = [...seoTasks, ...emailTasks, ...paidTasks, ...socialTasks]
         }
 
         if (include.has('reports')) {

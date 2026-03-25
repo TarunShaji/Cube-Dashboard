@@ -42,7 +42,7 @@ export async function PUT(request, { params }) {
         const cleanData = validation.data
         const { service, ...approvalUpdate } = cleanData
 
-        const collectionName = service === 'email' ? 'email_tasks' : (service === 'paid' ? 'paid_tasks' : 'tasks')
+        const collectionName = service === 'email' ? 'email_tasks' : (service === 'paid' ? 'paid_tasks' : (service === 'social' ? 'social_tasks' : 'tasks'))
 
         const task = await database.collection(collectionName).findOne({ id: taskId, client_id: clientDoc.id })
         if (!task) return handleCORS(NextResponse.json({ error: 'Task not found in service: ' + (service || 'seo') }, { status: 404 }))

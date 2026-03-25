@@ -13,6 +13,7 @@ import { rowToContent, getMappedHeaders } from '@/lib/import/content-mapping'
 import { rowToTask, rowToClickUpTask, TASK_PREVIEW_COLS } from '@/lib/import/task-mapping'
 import { rowToEmailTask, EMAIL_PREVIEW_COLS } from '@/lib/import/email-mapping'
 import { rowToPaidTask, PAID_PREVIEW_COLS } from '@/lib/import/paid-mapping'
+import { rowToSocialTask, SOCIAL_PREVIEW_COLS } from '@/lib/import/social-mapping'
 
 
 function parseSpreadsheet(text) {
@@ -108,20 +109,23 @@ export default function ImportPage() {
         <p className="text-gray-500 text-sm mt-1">Import tasks or content calendar items from CSV / Google Sheets, or from ClickUp</p>
       </div>
       <Tabs defaultValue="tasks-csv" className="w-full">
-        <TabsList className="mb-8 p-1.5 bg-gray-100/80 border border-gray-200/50 rounded-xl flex flex-wrap h-auto gap-2 shadow-inner">
-          <TabsTrigger value="tasks-csv" className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md transition-all border border-transparent data-[state=active]:border-blue-100 hover:text-gray-700">
+        <TabsList className="mb-8 p-1.5 bg-white border-2 border-blue-100 rounded-xl flex flex-wrap h-auto gap-1.5 shadow-lg">
+          <TabsTrigger value="tasks-csv" className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm text-gray-500 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all hover:bg-gray-50 hover:text-gray-800">
             <ListTodo className="w-4 h-4" />SEO Tasks
           </TabsTrigger>
-          <TabsTrigger value="email-csv" className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md transition-all border border-transparent data-[state=active]:border-blue-100 hover:text-gray-700">
+          <TabsTrigger value="email-csv" className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm text-gray-500 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all hover:bg-gray-50 hover:text-gray-800">
             <ListTodo className="w-4 h-4" />Email Tasks
           </TabsTrigger>
-          <TabsTrigger value="paid-csv" className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md transition-all border border-transparent data-[state=active]:border-blue-100 hover:text-gray-700">
+          <TabsTrigger value="paid-csv" className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm text-gray-500 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all hover:bg-gray-50 hover:text-gray-800">
             <ListTodo className="w-4 h-4" />Paid Ads Tasks
           </TabsTrigger>
-          <TabsTrigger value="content-csv" className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md transition-all border border-transparent data-[state=active]:border-blue-100 hover:text-gray-700">
+          <TabsTrigger value="social-csv" className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm text-gray-500 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all hover:bg-gray-50 hover:text-gray-800">
+            <ListTodo className="w-4 h-4" />Social Media Tasks
+          </TabsTrigger>
+          <TabsTrigger value="content-csv" className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm text-gray-500 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all hover:bg-gray-50 hover:text-gray-800">
             <FileText className="w-4 h-4" />Content Calendar
           </TabsTrigger>
-          <TabsTrigger value="clickup-csv" className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-md transition-all border border-transparent data-[state=active]:border-blue-100 hover:text-gray-700">
+          <TabsTrigger value="clickup-csv" className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm text-gray-500 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all hover:bg-gray-50 hover:text-gray-800">
             <Key className="w-4 h-4" />ClickUp CSV
           </TabsTrigger>
         </TabsList>
@@ -136,6 +140,10 @@ export default function ImportPage() {
 
         <TabsContent value="paid-csv">
           <PaidCSVImport clients={clients} />
+        </TabsContent>
+
+        <TabsContent value="social-csv">
+          <SocialCSVImport clients={clients} />
         </TabsContent>
 
         <TabsContent value="content-csv">
@@ -163,7 +171,7 @@ function ImportShell({
   actionLabel,
   customPreview,
 }) {
-  const [pasteMode, setPasteMode] = useState(false)
+  const [pasteMode, setPasteMode] = useState(true)
   const [clientSearch, setClientSearch] = useState('')
   const [showClientList, setShowClientList] = useState(false)
   const clientDropRef = useRef(null)
@@ -455,6 +463,29 @@ function FormatGuide({ actionLabel }) {
         </div>
         <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-blue-700 leading-normal">
           <strong>Note:</strong> Assigned To is not mapped from the sheet — please select the team member in the dashboard after import.
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  if (actionLabel === 'social tasks') return (
+    <Card className="border border-gray-100 bg-white shadow-sm">
+      <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-pink-600">Social Media Tasks: Detected Columns</CardTitle></CardHeader>
+      <CardContent className="text-xs text-gray-500 space-y-4">
+        <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Use these headers only</p>
+          <ul className="space-y-1.5">
+            <li className="text-gray-700">Task</li>
+            <li className="text-gray-700">Status</li>
+            <li className="text-gray-700">Assigned</li>
+            <li className="text-gray-700">Link</li>
+            <li className="text-gray-700">Live Link</li>
+            <li className="text-gray-700">Live Date</li>
+            <li className="text-gray-700">Internal Approval</li>
+          </ul>
+        </div>
+        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-blue-700 leading-normal">
+          <strong>Note:</strong> Assigned To is not mapped from the sheet — select the team member in the dashboard after import.
         </div>
       </CardContent>
     </Card>
@@ -1095,3 +1126,114 @@ function ContentCSVImport({ clients }) {
     />
   )
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SOCIAL MEDIA TASK CSV IMPORT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function SocialCSVImport({ clients }) {
+  const [selectedClient, setSelectedClient] = useState('__none__')
+  const [rawData, setRawData] = useState('')
+  const [parsed, setParsed] = useState(null)
+  const [mappedRows, setMappedRows] = useState([])
+  const [parseError, setParseError] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [result, setResult] = useState(null)
+
+  const doParse = (text) => {
+    setParseError('')
+    try {
+      const p = parseSpreadsheet(text)
+      if (!p) { setParseError('Could not parse. Ensure header row is present.'); setParsed(null); setMappedRows([]); return }
+      const mapped = p.rows.map(r => rowToSocialTask(r, p.headers, 'preview')).filter(Boolean)
+      if (mapped.length === 0) {
+        setParsed({ ...p, validCount: 0, unsupported: true, unsupportedMsg: 'No rows with a recognisable "Social Media Task" or "Task Name" column found.' })
+        setMappedRows([])
+        return
+      }
+      setParsed({ ...p, validCount: mapped.length })
+      setMappedRows(mapped)
+    } catch (e) {
+      setParseError('Parse error: ' + (e?.message || 'Unknown error'))
+      setParsed(null); setMappedRows([])
+    }
+  }
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0]; e.target.value = ''
+    if (!file) return
+    try { const text = await file.text(); setRawData(text); doParse(text) }
+    catch (e) { setParseError('Could not read file: ' + (e?.message || '')) }
+  }
+
+  const handleImport = async () => {
+    if (!parsed || selectedClient === '__none__') return
+    setImporting(true); setResult(null)
+    const tasks = safeArray(parsed.rows).map(r => rowToSocialTask(r, parsed.headers, selectedClient)).filter(Boolean)
+    try {
+      const res = await apiFetch('/api/social-tasks/bulk', { method: 'POST', body: JSON.stringify({ tasks }) })
+      let data = {}; try { data = await res.json() } catch (e) { /* ignore */ }
+      if (res.ok) {
+        setResult({ success: data.count ?? tasks.length, failed: data.failed ?? 0, total: tasks.length, errors: safeArray(data.errors) })
+        setParsed(null); setMappedRows([]); setRawData('')
+      } else { setResult({ success: 0, failed: tasks.length, total: tasks.length, error: data.error || `Server error (${res.status})` }) }
+    } catch (e) { setResult({ success: 0, failed: 0, total: 0, error: 'Network error: ' + (e?.message || 'Could not reach server') }) }
+    finally { setImporting(false) }
+  }
+
+  const mappedPreview = mappedRows.length > 0 && (
+    <Card className="border border-gray-200">
+      <CardHeader>
+        <CardTitle className="text-base">
+          Preview <span className="text-xs font-normal text-gray-400">({mappedRows.length} rows)</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-auto max-h-80">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-gray-50 border-b">
+                {SOCIAL_PREVIEW_COLS.map(c => (
+                  <th key={c.field} className="px-3 py-2 text-left font-semibold text-gray-600 whitespace-nowrap">{c.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {mappedRows.slice(0, 8).map((row, i) => (
+                <tr key={i} className="hover:bg-gray-50">
+                  {SOCIAL_PREVIEW_COLS.map(c => (
+                    <td key={c.field} className="px-3 py-1.5 text-gray-700 max-w-[200px] truncate" title={String(row[c.field] || '')}>
+                      {String(row[c.field] ?? '') || <span className="text-gray-300 italic">—</span>}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  return (
+    <ImportShell
+      title="Upload Social Media Tasks CSV or Paste from Sheets"
+      actionLabel="social tasks"
+      clients={clients}
+      selectedClient={selectedClient}
+      setSelectedClient={setSelectedClient}
+      rawData={rawData}
+      setRawData={setRawData}
+      parsed={parsed}
+      parseError={parseError}
+      onFile={handleFile}
+      onParse={(text) => doParse(text || rawData)}
+      onImport={handleImport}
+      importing={importing}
+      result={result}
+      setResult={setResult}
+      customPreview={mappedPreview}
+    />
+  )
+}
+

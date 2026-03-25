@@ -41,7 +41,7 @@ import {
   STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, CONTENT_INTERNAL_APPROVALS, REPORT_TYPES, SERVICE_TYPES,
   OUTLINE_STATUSES, TOPIC_APPROVALS, BLOG_APPROVALS, BLOG_STATUSES, INTERN_STATUSES,
   statusColors, priorityColors, approvalColors, topicApprovalColors, blogStatusColors, internalApprovalColors, internStatusColors,
-  TASK_COLUMN_WIDTHS, CONTENT_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS, STATUS_ORDER
+  TASK_COLUMN_WIDTHS, CONTENT_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS, SOCIAL_COLUMN_WIDTHS, STATUS_ORDER
 } from '@/lib/constants'
 
 // Shared components imported from @/components/
@@ -184,6 +184,13 @@ function ClientDetailPageContent() {
           label: 'Paid Ads Tasks',
           columns: ['selection', 'title', 'comments', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
           widths: PAID_COLUMN_WIDTHS
+        }
+      case 'social':
+        return {
+          endpoint: '/api/social-tasks',
+          label: 'Social Media Tasks',
+          columns: ['selection', 'title', 'comments', 'status', 'assigned', 'link', 'live_link', 'live_date', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          widths: SOCIAL_COLUMN_WIDTHS
         }
       default:
         return {
@@ -734,7 +741,7 @@ function ClientDetailPageContent() {
   const getTaskSortableValue = (task, field) => {
     if (!task || !field) return ''
     if (field === 'assigned_name') return toAssignedIds(task.assigned_to).map((id) => memberMap[id]).filter(Boolean).join(', ')
-    if (['eta_end', 'campaign_live_date', 'live_data'].includes(field)) return getDateValue(task[field])
+    if (['eta_end', 'campaign_live_date', 'live_data', 'live_date'].includes(field)) return getDateValue(task[field])
     return task[field] ?? ''
   }
 
@@ -1011,6 +1018,8 @@ function ClientDetailPageContent() {
               }
               {colId === 'campaign_live' && <EditableCell value={task.campaign_live_date} type="date" onSave={v => updateTask(task.id, 'campaign_live_date', v)} />}
               {colId === 'live_data' && <EditableCell value={task.live_data} type="date" onSave={v => updateTask(task.id, 'live_data', v)} />}
+              {colId === 'live_link' && <LinkCell value={task.live_link} onSave={v => updateTask(task.id, 'live_link', v)} />}
+              {colId === 'live_date' && <EditableCell value={task.live_date} type="date" onSave={v => updateTask(task.id, 'live_date', v)} />}
               {
                 colId === 'send_link' && (
                   <Button
@@ -1208,6 +1217,7 @@ function ClientDetailPageContent() {
     title: 'Task', category: 'Category', status: 'Status', priority: 'Priority',
     eta: 'ETA End', assigned: 'Assigned', link: 'Link', internal_approval: 'Internal Approval',
     campaign_live: 'Campaign Live', live_data: 'Live Data',
+    live_link: 'Live Link', live_date: 'Live Date',
     send_link: 'Send Link', client_approval: 'Client Approval', client_feedback: 'Feedback', comments: 'Comments', actions: ''
   }
   const taskSortFields = {
@@ -1218,6 +1228,8 @@ function ClientDetailPageContent() {
     eta: 'eta_end',
     assigned: 'assigned_name',
     link: 'link_url',
+    live_link: 'live_link',
+    live_date: 'live_date',
     internal_approval: 'internal_approval',
     campaign_live: 'campaign_live_date',
     live_data: 'live_data',
@@ -1326,6 +1338,13 @@ function ClientDetailPageContent() {
               >
                 <TrendingUp className="w-3.5 h-3.5" />
                 Paid Ads
+              </button>
+              <button
+                onClick={() => updateQueryParams({ service: 'social', page: 1 })}
+                className={`flex items-center gap-2 px-6 py-2.5 text-xs font-bold rounded-lg transition-all duration-200 ${tService === 'social' ? 'bg-pink-600 text-white shadow-md transform scale-105' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-700'}`}
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                Social Media
               </button>
             </div>
             {(tSearch || tStatus !== 'all' || tCategory !== 'all' || tPriority !== 'all' || tAssignee !== 'all') && (

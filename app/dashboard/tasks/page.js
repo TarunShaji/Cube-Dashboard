@@ -16,7 +16,7 @@ import { Pagination } from '@/components/shared/Pagination'
 import { ClientSwitcher } from '@/components/shared/ClientSwitcher'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, statusColors, priorityColors, approvalColors, internalApprovalColors, TASK_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS } from '@/lib/constants'
+import { STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, statusColors, priorityColors, approvalColors, internalApprovalColors, TASK_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS, SOCIAL_COLUMN_WIDTHS } from '@/lib/constants'
 import {
   DndContext,
   closestCenter,
@@ -154,7 +154,7 @@ function TasksPageContent() {
   const [saving, setSaving] = useState({})
   const [selected, setSelected] = useState([])
   const [bulkAction, setBulkAction] = useState('__none__')
-  const [newTask, setNewTask] = useState({ title: '', client_id: '' })
+  const [newTask, setNewTask] = useState({ title: '', client_ids: [] })
   const [addingTask, setAddingTask] = useState(false)
   const [confirmConfig, setConfirmConfig] = useState(null)
   const [commentsModal, setCommentsModal] = useState(null)
@@ -191,6 +191,13 @@ function TasksPageContent() {
           label: 'Paid Ads Tasks',
           columns: ['serial', 'selection', 'client', 'title', 'comments', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
           widths: PAID_COLUMN_WIDTHS
+        }
+      case 'social':
+        return {
+          endpoint: '/api/social-tasks',
+          label: 'Social Media Tasks',
+          columns: ['serial', 'selection', 'client', 'title', 'comments', 'status', 'assigned', 'link', 'live_link', 'live_date', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          widths: SOCIAL_COLUMN_WIDTHS
         }
       default:
         return {
@@ -366,12 +373,29 @@ function TasksPageContent() {
   }
 
   const addTask = async () => {
-    if (!newTask.title.trim() || !newTask.client_id) return
+    if (!newTask.title.trim() || newTask.client_ids.length === 0) return
     setAddingTask(true)
-    const res = await apiFetch(serviceConfig.endpoint, { method: 'POST', body: JSON.stringify(newTask) })
-    const task = await res.json()
-    setTasks(ts => [task, ...ts])
-    setNewTask(n => ({ ...n, title: '' }))
+    try {
+      // Fire one POST per selected client in parallel
+      const results = await Promise.allSettled(
+        newTask.client_ids.map(client_id =>
+          apiFetch(serviceConfig.endpoint, {
+            method: 'POST',
+            body: JSON.stringify({ title: newTask.title.trim(), client_id })
+          })
+        )
+      )
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value?.ok).length
+      if (succeeded > 0) {
+        setNewTask(n => ({ ...n, title: '' }))
+        loadData()
+      }
+      if (succeeded < newTask.client_ids.length) {
+        alert(`Warning: ${newTask.client_ids.length - succeeded} task(s) failed to save.`)
+      }
+    } catch (e) {
+      console.error('Add task failed', e)
+    }
     setAddingTask(false)
   }
 
@@ -402,7 +426,7 @@ function TasksPageContent() {
     if (!task || !sortField) return ''
     if (sortField === 'client_name') return clientMap[task.client_id] || task.client_name || ''
     if (sortField === 'assigned_name') return toAssignedIds(task.assigned_to).map((id) => memberMap[id]).filter(Boolean).join(', ')
-    if (sortField === 'eta_end' || sortField === 'campaign_live_date' || sortField === 'live_data') return getDateValue(task[sortField])
+    if (sortField === 'eta_end' || sortField === 'campaign_live_date' || sortField === 'live_data' || sortField === 'live_date') return getDateValue(task[sortField])
     return task[sortField] ?? ''
   }
 
@@ -582,6 +606,8 @@ function TasksPageContent() {
               )}
               {colId === 'campaign_live' && <EditableCell value={task.campaign_live_date} type="date" onSave={v => updateTask(task.id, 'campaign_live_date', v)} />}
               {colId === 'live_data' && <EditableCell value={task.live_data} type="date" onSave={v => updateTask(task.id, 'live_data', v)} />}
+              {colId === 'live_link' && <LinkCell value={task.live_link} onSave={v => updateTask(task.id, 'live_link', v)} />}
+              {colId === 'live_date' && <EditableCell value={task.live_date} type="date" onSave={v => updateTask(task.id, 'live_date', v)} />}
               {colId === 'send_link' && (
                 <Button
                   size="sm"
@@ -641,6 +667,7 @@ function TasksPageContent() {
     selection: '', serial: '#', client: 'Client', title: 'Task', category: 'Category', status: 'Status', priority: 'Priority',
     eta: 'ETA End', assigned: 'Assigned', link: 'Link', internal_approval: 'Internal Approval', send_link: 'Send Link',
     campaign_live: 'Campaign Live', live_data: 'Live Data',
+    live_link: 'Live Link', live_date: 'Live Date',
     client_approval: 'Client Approval', client_feedback: 'Client Feedback', comments: 'Comments', actions: ''
   }
   const columnSortFields = {
@@ -652,6 +679,8 @@ function TasksPageContent() {
     eta: 'eta_end',
     assigned: 'assigned_name',
     link: 'link_url',
+    live_link: 'live_link',
+    live_date: 'live_date',
     internal_approval: 'internal_approval',
     campaign_live: 'campaign_live_date',
     live_data: 'live_data',
@@ -687,6 +716,12 @@ function TasksPageContent() {
             >
               Paid Ads Tasks
             </button>
+            <button
+              onClick={() => updateQueryParams({ service: 'social', page: 1 })}
+              className={`px-6 py-2 text-xs font-bold rounded-lg transition-all ${service === 'social' ? 'bg-white text-blue-700 shadow-md border border-blue-50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+            >
+              Social Media
+            </button>
           </div>
           <Button variant="outline" size="sm" onClick={loadData} className="h-10 px-4 gap-2 border-gray-200 hover:bg-gray-50 hover:text-blue-600 transition-all shadow-sm font-semibold">
             <RefreshCw className="w-4 h-4" /> Refresh
@@ -705,35 +740,83 @@ function TasksPageContent() {
           <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <Plus className="w-3.5 h-3.5" /> Quick Add {serviceConfig.label.slice(0, -1)}
           </h3>
-          <div className="flex gap-2">
-            <Select
-              value={newTask.client_id || '__none__'}
-              onValueChange={v => setNewTask(n => ({ ...n, client_id: v === '__none__' ? '' : v }))}
-            >
-              <SelectTrigger className="h-9 text-xs w-48 bg-white border-blue-200">
-                <SelectValue placeholder="Target Client..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__" className="text-xs text-gray-400">Select client…</SelectItem>
-                {safeArray(clients).map(c => <SelectItem key={c?.id} value={c?.id} className="text-xs">{c?.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <div className="relative flex-1">
+          <div className="flex gap-2 flex-wrap">
+            {/* Multi-client selector */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={`h-9 px-3 text-xs rounded-md border bg-white flex items-center gap-1.5 min-w-[160px] transition-all ${
+                    newTask.client_ids.length > 0
+                      ? 'border-blue-400 text-blue-700 font-semibold'
+                      : 'border-blue-200 text-gray-400'
+                  }`}
+                >
+                  {newTask.client_ids.length === 0
+                    ? 'Select clients…'
+                    : newTask.client_ids.length === 1
+                      ? (clients.find(c => c?.id === newTask.client_ids[0])?.name || '1 client')
+                      : `${newTask.client_ids.length} clients selected`
+                  }
+                  <span className="ml-auto text-gray-400">▾</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64 max-h-72 overflow-y-auto">
+                <DropdownMenuLabel className="text-xs flex items-center justify-between">
+                  <span>Select Clients</span>
+                  {newTask.client_ids.length > 0 && (
+                    <button
+                      className="text-[10px] text-gray-400 hover:text-red-500 font-normal"
+                      onClick={() => setNewTask(n => ({ ...n, client_ids: [] }))}
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {safeArray(clients).map(c => (
+                  <DropdownMenuCheckboxItem
+                    key={c?.id}
+                    checked={newTask.client_ids.includes(c?.id)}
+                    onCheckedChange={(checked) => {
+                      setNewTask(n => ({
+                        ...n,
+                        client_ids: checked
+                          ? [...n.client_ids, c?.id]
+                          : n.client_ids.filter(id => id !== c?.id)
+                      }))
+                    }}
+                    className="text-xs"
+                  >
+                    {c?.name}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Title input */}
+            <div className="relative flex-1 min-w-[200px]">
               <input
                 type="text" value={newTask.title}
                 onChange={e => setNewTask(n => ({ ...n, title: e.target.value }))}
                 onKeyDown={e => e.key === 'Enter' && addTask()}
-                placeholder={`What ${serviceConfig.label.toLowerCase()} needs to be done?`}
+                placeholder={`Task title…`}
                 className="w-full h-9 text-xs px-3 py-1 bg-white border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400 transition-all"
                 disabled={addingTask}
               />
             </div>
+
             <Button
               onClick={addTask}
-              disabled={addingTask || !newTask.title.trim() || !newTask.client_id || newTask.client_id === '__none__'}
+              disabled={addingTask || !newTask.title.trim() || newTask.client_ids.length === 0}
               className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all"
             >
-              {addingTask ? 'Saving...' : 'Add Task'}
+              {addingTask
+                ? 'Saving…'
+                : newTask.client_ids.length > 1
+                  ? `Add to ${newTask.client_ids.length} Clients`
+                  : 'Add Task'
+              }
             </Button>
           </div>
         </div>
