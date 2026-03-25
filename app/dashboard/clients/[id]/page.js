@@ -76,6 +76,25 @@ function CommentsModal({ taskId, value, onClose, onSave }) {
   )
 }
 
+function FeedbackModal({ value, onClose }) {
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Client Feedback</DialogTitle>
+          <DialogDescription>Feedback provided by the client on this task.</DialogDescription>
+        </DialogHeader>
+        <div className="rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700 whitespace-pre-wrap max-h-72 overflow-y-auto">
+          {value || 'No feedback provided.'}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function toAssignedIds(raw) {
   if (!raw) return []
   if (Array.isArray(raw)) return raw.filter(Boolean)
@@ -279,6 +298,7 @@ function ClientDetailPageContent() {
   const addContentInputRef = useRef(null)
   // Comments modal state
   const [commentsModal, setCommentsModal] = useState(null) // { taskId, value }
+  const [feedbackModal, setFeedbackModal] = useState(null) // feedback text string
 
   useEffect(() => {
     const savedTasks = localStorage.getItem(`client_tasks_col_order_${tService}`)
@@ -1012,21 +1032,27 @@ function ClientDetailPageContent() {
               {colId === 'client_approval' && <EditableCell value={task.client_approval} type="approval" disabled={true} />}
               {colId === 'client_feedback' && (
                 <div className="max-w-[150px]">
-                  {task.client_approval === 'Required Changes' ? (
-                    <div className="text-[10px] text-red-600 bg-red-50 p-1 rounded border border-red-100 line-clamp-2" title={task.client_feedback_note}>
-                      {task.client_feedback_note}
-                    </div>
+                  {task.client_approval === 'Required Changes' && task.client_feedback_note ? (
+                    <button
+                      type="button"
+                      className="w-full text-left cursor-pointer"
+                      onClick={() => setFeedbackModal(task.client_feedback_note)}
+                    >
+                      <span className="block text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 truncate hover:bg-red-100 transition-colors" title={task.client_feedback_note}>
+                        {task.client_feedback_note}
+                      </span>
+                    </button>
                   ) : <span className="text-gray-300 text-xs">—</span>}
                 </div>
               )}
               {colId === 'comments' && (
                 <div
-                  className="cursor-pointer px-1 py-0.5 rounded hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 transition-all min-h-[24px] max-w-[200px] overflow-hidden"
+                  className="cursor-pointer px-1 py-0.5 rounded hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 transition-all min-h-[24px] max-w-[200px]"
                   onClick={() => setCommentsModal({ taskId: task.id, value: task.comments || '' })}
                   title={task.comments || 'Click to add description'}
                 >
                   {task.comments
-                    ? <span className="text-xs text-gray-600 line-clamp-2 block">{task.comments}</span>
+                    ? <span className="text-xs text-gray-600 truncate block">{task.comments}</span>
                     : <span className="text-gray-300 text-xs">Add description...</span>}
                 </div>
               )}
@@ -1145,10 +1171,16 @@ function ClientDetailPageContent() {
               )}
               {colId === 'blog_feedback' && (
                 <div className="max-w-[150px]">
-                  {item.blog_approval_status === 'Changes Required' ? (
-                    <div className="text-[10px] text-red-600 bg-red-50 p-1 rounded border border-red-100 line-clamp-2" title={item.blog_client_feedback_note}>
-                      {item.blog_client_feedback_note || 'Changes requested'}
-                    </div>
+                  {item.blog_approval_status === 'Changes Required' && item.blog_client_feedback_note ? (
+                    <button
+                      type="button"
+                      className="w-full text-left cursor-pointer"
+                      onClick={() => setFeedbackModal(item.blog_client_feedback_note)}
+                    >
+                      <span className="block text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 truncate hover:bg-red-100 transition-colors" title={item.blog_client_feedback_note}>
+                        {item.blog_client_feedback_note}
+                      </span>
+                    </button>
                   ) : <span className="text-gray-300 text-xs">—</span>}
                 </div>
               )}
@@ -1813,6 +1845,12 @@ function ClientDetailPageContent() {
           value={commentsModal.value}
           onClose={() => setCommentsModal(null)}
           onSave={(val) => updateTask(commentsModal.taskId, 'comments', val)}
+        />
+      )}
+      {feedbackModal && (
+        <FeedbackModal
+          value={feedbackModal}
+          onClose={() => setFeedbackModal(null)}
         />
       )}
     </div>
