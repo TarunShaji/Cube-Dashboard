@@ -525,13 +525,14 @@ function ClientDetailPageContent() {
     setSettingsError('')
     // Only send fields accepted by ClientSchema — strip forbidden fields
     // (id, slug, is_active, _id, created_at, updated_at etc. cause a 400)
-    const { name, service_type, portal_password, npl_member_id, tpl_member_id, cpl_member_id, email } = settingsForm
+    const { name, service_type, portal_password, npl_member_id, tpl_member_id, cpl_member_id, email, website_access_id } = settingsForm
     const payload = { name, service_type }
     if (portal_password) payload.portal_password = portal_password
     if (npl_member_id !== undefined) payload.npl_member_id = npl_member_id
     if (tpl_member_id !== undefined) payload.tpl_member_id = tpl_member_id
     if (cpl_member_id !== undefined) payload.cpl_member_id = cpl_member_id
     if (email !== undefined) payload.email = email
+    if (website_access_id !== undefined) payload.website_access_id = website_access_id
 
     try {
       const res = await apiFetch(`/api/clients/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
@@ -1842,8 +1843,12 @@ function ClientDetailPageContent() {
               <Input value={settingsForm.portal_password || ''} onChange={e => setSettingsForm(f => ({ ...f, portal_password: e.target.value }))} placeholder="Optional" className="mt-1" />
             </div>
             <div>
-              <Label>Contact Emails <span className="text-gray-400 text-xs">(comma-separated)</span></Label>
-              <Input value={settingsForm.email || ''} onChange={e => setSettingsForm(f => ({ ...f, email: e.target.value }))} placeholder="e.g. john@comp.com, sara@comp.com" className="mt-1" />
+              <Label>Google Access ID <span className="text-gray-400 text-xs">(comma-separated email IDs)</span></Label>
+              <Input value={settingsForm.email || ''} onChange={e => setSettingsForm(f => ({ ...f, email: e.target.value }))} placeholder="e.g. john@gmail.com, sara@gmail.com" className="mt-1" />
+            </div>
+            <div>
+              <Label>Website Access ID <span className="text-gray-400 text-xs">(email with CMS/website access)</span></Label>
+              <Input value={settingsForm.website_access_id || ''} onChange={e => setSettingsForm(f => ({ ...f, website_access_id: e.target.value }))} placeholder="e.g. john@gmail.com" className="mt-1" />
             </div>
             {settingsError && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">{settingsError}</p>}
             <DialogFooter>

@@ -142,7 +142,7 @@ function DashboardPageContent() {
   const { data: membersData } = useSWR('/api/team', swrFetcher)
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
-  const [form, setForm] = useState({ name: '', service_type: 'SEO', portal_password: '', email: '' })
+  const [form, setForm] = useState({ name: '', service_type: 'SEO', portal_password: '', email: '', website_access_id: '' })
   const [saving, setSaving] = useState(false)
   const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || ''
 
@@ -172,7 +172,7 @@ function DashboardPageContent() {
     })
     if (res.ok) {
       setShowAdd(false)
-      setForm({ name: '', service_type: 'SEO', portal_password: '', email: '' })
+      setForm({ name: '', service_type: 'SEO', portal_password: '', email: '', website_access_id: '' })
       mutate()
     }
     setSaving(false)
@@ -203,7 +203,16 @@ function DashboardPageContent() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-1">{clientList.filter(c => c?.is_active !== false).length} active clients</p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-gray-500 text-sm">
+              {clientList.filter(c => c?.is_active !== false && c?.is_churned !== true).length} active clients
+            </p>
+            {clientList.filter(c => c?.is_churned === true).length > 0 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200">
+                {clientList.filter(c => c?.is_churned === true).length} churned
+              </span>
+            )}
+          </div>
         </div>
         <Button onClick={() => setShowAdd(true)} className="gap-2">
           <Plus className="w-4 h-4" /> Add Client
@@ -235,7 +244,8 @@ function DashboardPageContent() {
                 <th className="text-left px-4 py-3 font-semibold text-gray-600" title="TPL: Assigned member">TPL</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600" title="CPL: Assigned member">CPL</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Active Tasks</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Email</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600" title="Google Workspace email IDs with access">Google Access ID</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600" title="Email ID with access to the website/CMS">Website Access ID</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Portal</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -298,11 +308,19 @@ function DashboardPageContent() {
                   {/* Active Tasks */}
                   <td className="px-4 py-3 text-gray-700">{client.task_count || 0}</td>
 
-                  {/* Email */}
+                  {/* Google Access ID */}
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                     <EditableEmailCell
                       value={client.email}
                       onSave={v => updateClientFields(client.id, { email: v })}
+                    />
+                  </td>
+
+                  {/* Website Access ID */}
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                    <EditableEmailCell
+                      value={client.website_access_id}
+                      onSave={v => updateClientFields(client.id, { website_access_id: v })}
                     />
                   </td>
 
@@ -361,8 +379,12 @@ function DashboardPageContent() {
               <Input value={form.portal_password} onChange={e => setForm(f => ({ ...f, portal_password: e.target.value }))} placeholder="Leave empty for public access" />
             </div>
             <div className="space-y-2">
-              <Label>Contact Emails <span className="text-gray-400 text-xs">(optional, comma-separated)</span></Label>
-              <Input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="e.g. john@comp.com, sara@comp.com" />
+              <Label>Google Access ID <span className="text-gray-400 text-xs">(optional, comma-separated)</span></Label>
+              <Input value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="e.g. john@gmail.com, sara@gmail.com" />
+            </div>
+            <div className="space-y-2">
+              <Label>Website Access ID <span className="text-gray-400 text-xs">(optional — defaults to Google Access ID)</span></Label>
+              <Input value={form.website_access_id} onChange={e => setForm(f => ({ ...f, website_access_id: e.target.value }))} placeholder="e.g. john@gmail.com" />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
