@@ -139,11 +139,7 @@ export default function LoginPage() {
                 {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
               </button>
 
-              {!isSignUp && (
-                <div className="text-[10px] text-slate-500 text-center uppercase tracking-widest leading-relaxed">
-                  Default: admin@agency.com / admin123
-                </div>
-              )}
+
             </div>
           </CardContent>
         </Card>

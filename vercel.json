@@ -1,0 +1,15 @@
+{
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "cube-dashboard-ashen.vercel.app"
+        }
+      ],
+      "destination": "https://dashboard.cubehq.ai/$1",
+      "permanent": false
+    }
+  ]
+}
