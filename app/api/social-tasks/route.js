@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { connectToMongo } from '@/lib/db/mongodb'
 import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
-import { applyTaskTransition, assertTaskInvariant } from '@/lib/engine/lifecycle'
+import { applySocialTaskTransition, assertSocialTaskInvariant } from '@/lib/engine/lifecycle'
 import { safeURL, safeArray } from '@/lib/safe'
 import { validateBody, rejectFields } from '@/lib/middleware/validation'
 import { SocialTaskSchema } from '@/lib/db/schemas/social.schema'
@@ -10,11 +10,15 @@ import { getActiveTeamMemberIdSet, normalizeAssignedTo, extractAssignedIds, buil
 
 export const runtime = 'nodejs';
 
+// Client-only fields — internal cannot inject via regular PUT
 const FORBIDDEN_FIELDS = [
-    'internal_approval',
-    'client_approval',
-    'client_feedback_note',
-    'client_feedback_at'
+    'content_idea_approval',
+    'content_idea_feedback',
+    'content_draft_approval',
+    'draft_feedback',
+    // Send gates use dedicated endpoints: /send-idea and /send-draft
+    'content_idea_sent',
+    'content_draft_sent',
 ];
 
 export async function GET(request) {
@@ -24,30 +28,24 @@ export async function GET(request) {
         const query = {}
 
         const clientId = url.searchParams.get('client_id')
-        const status = url.searchParams.get('status')
         const assignedTo = url.searchParams.get('assigned_to')
         const search = url.searchParams.get('search')
         const enrich = url.searchParams.get('enrich') !== '0'
 
-        // Pagination Params
         const page = parseInt(url.searchParams.get('page')) || 1
         const limit = parseInt(url.searchParams.get('limit')) || 50
         const skip = (page - 1) * limit
 
         if (clientId) query.client_id = clientId
-        if (status) {
-            if (status === 'not_completed') {
-                query.status = { $ne: 'Completed' }
-            } else {
-                query.status = status
-            }
-        }
         if (assignedTo) Object.assign(query, buildAssignedToFilter(assignedTo))
         if (search) {
-            query.title = { $regex: search, $options: 'i' }
+            query.$or = [
+                { visual_brief: { $regex: search, $options: 'i' } },
+                { content: { $regex: search, $options: 'i' } },
+                { caption: { $regex: search, $options: 'i' } },
+            ]
         }
 
-        // Sort params
         const sortBy = url.searchParams.get('sort_by')
         const sortDir = url.searchParams.get('sort_dir') === 'desc' ? -1 : 1
         const sortStage = sortBy ? { [sortBy]: sortDir } : { position: 1, created_at: -1 }
@@ -55,26 +53,15 @@ export async function GET(request) {
         const collection = database.collection('social_tasks')
         const [total, tasks] = await Promise.all([
             collection.countDocuments(query),
-            collection.find(query)
-                .sort(sortStage)
-                .skip(skip)
-                .limit(limit)
-                .toArray()
+            collection.find(query).sort(sortStage).skip(skip).limit(limit).toArray()
         ])
         const totalPages = Math.ceil(total / limit)
-
         const cleanTasks = safeArray(tasks).map(({ _id, ...t }) => t)
 
         if (!enrich) {
-            return handleCORS(NextResponse.json({
-                data: cleanTasks,
-                total,
-                page,
-                totalPages
-            }))
+            return handleCORS(NextResponse.json({ data: cleanTasks, total, page, totalPages }))
         }
 
-        // Enrich with client names and assignee names only when requested.
         const clientIds = [...new Set(cleanTasks.map(t => t.client_id))]
         const assigneeIds = [...new Set(cleanTasks.flatMap(t => extractAssignedIds(t.assigned_to)))]
         const clients = clientIds.length > 0 ? await database.collection('clients').find({ id: { $in: clientIds } }, { projection: { _id: 0, id: 1, name: 1 } }).toArray() : []
@@ -92,12 +79,7 @@ export async function GET(request) {
             }
         })
 
-        return handleCORS(NextResponse.json({
-            data: enriched,
-            total,
-            page,
-            totalPages
-        }))
+        return handleCORS(NextResponse.json({ data: enriched, total, page, totalPages }))
     })
 }
 
@@ -106,13 +88,11 @@ export async function POST(request) {
         const database = await connectToMongo()
         const body = await request.json()
 
-        // 1. Mutation Isolation: Reject injection of lifecycle fields on creation
         const rejection = rejectFields(body, FORBIDDEN_FIELDS)
         if (!rejection.success) {
             return handleCORS(NextResponse.json(rejection.error, { status: 400 }))
         }
 
-        // 2. Schema Validation
         const validation = validateBody(SocialTaskSchema, body)
         if (!validation.success) {
             return handleCORS(NextResponse.json(validation.error, { status: 400 }))
@@ -122,18 +102,14 @@ export async function POST(request) {
         const validMemberIds = await getActiveTeamMemberIdSet(database)
         const assignedTo = normalizeAssignedTo(cleanData.assigned_to, validMemberIds)
 
-        // 3. Engine-Backed Creation
-        const finalTask = applyTaskTransition(null, {
+        const finalTask = applySocialTaskTransition(null, {
             ...cleanData,
             ...(assignedTo !== undefined ? { assigned_to: assignedTo } : {}),
             id: uuidv4()
-        });
+        })
 
-        // 4. Persistence
         await database.collection('social_tasks').insertOne(finalTask)
-
-        // 5. Post-Insert Verification
-        assertTaskInvariant(finalTask);
+        assertSocialTaskInvariant(finalTask)
 
         return handleCORS(NextResponse.json(finalTask))
     })

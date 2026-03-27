@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ExternalLink, BarChart3, CheckCircle2, Loader2, Lock, Link2, FileText, Library, Folder, Image } from 'lucide-react'
+import { ExternalLink, BarChart3, CheckCircle2, Loader2, Lock, Link2, FileText, Library, Folder, Image, Send } from 'lucide-react'
 import { safeURL, safeJSON, safeArray } from '@/lib/safe'
 import { normalizeUrl } from '@/lib/utils'
 
@@ -262,6 +262,170 @@ function BlogApprovalButton({ contentId, current, slug, portalPassword, onUpdate
 }
 
 
+// Social idea approval button
+function SocialIdeaApprovalButton({ taskId, current, slug, portalPassword, onUpdate }) {
+  const [loading, setLoading] = useState(false)
+  const [showNote, setShowNote] = useState(false)
+  const [note, setNote] = useState('')
+  const [pendingChoice, setPendingChoice] = useState(null)
+  const val = current || 'Pending'
+
+  const set = async (choice) => {
+    if (choice === current) return
+    if (choice === 'Required Changes') {
+      setPendingChoice(choice)
+      setShowNote(true)
+      return
+    }
+    await submit(choice)
+  }
+
+  const submit = async (choice, feedbackNote = '') => {
+    setLoading(true)
+    try {
+      const headers = { 'Content-Type': 'application/json' }
+      if (portalPassword) headers['X-Portal-Password'] = portalPassword
+      const res = await fetch(`/api/portal/${slug}/tasks/${taskId}/approval`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ service: 'social', approval_type: 'content_idea', approval_value: choice, feedback: feedbackNote }),
+      })
+      if (res.ok) {
+        onUpdate(taskId, 'content_idea_approval', choice)
+        if (feedbackNote) onUpdate(taskId, 'content_idea_feedback', feedbackNote)
+        setShowNote(false)
+        setNote('')
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Failed to update approval')
+      }
+    } finally { setLoading(false) }
+  }
+
+  const colorClass = val === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' : val === 'Required Changes' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-gray-100 text-gray-500 border-gray-200'
+
+  return (
+    <div className="relative">
+      <Select value={val} onValueChange={set} disabled={loading}>
+        <SelectTrigger className={`h-8 text-xs rounded-full border ring-offset-0 focus:ring-1 focus:ring-blue-400 ${colorClass}`}>
+          {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {['Pending', 'Approved', 'Required Changes'].map(opt => (
+            <SelectItem key={opt} value={opt} className="text-xs">
+              <span className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${opt === 'Approved' ? 'bg-green-500' : opt === 'Required Changes' ? 'bg-red-500' : 'bg-gray-300'}`} />
+                {opt}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {showNote && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <Card className="w-full max-w-sm shadow-2xl">
+            <CardContent className="p-6">
+              <h3 className="text-sm font-bold text-gray-900 mb-2">Required Changes — Content Idea</h3>
+              <p className="text-xs text-gray-500 mb-4">Please describe what changes are needed for the content idea.</p>
+              <textarea autoFocus value={note} onChange={e => setNote(e.target.value)} placeholder="Describe what needs to change..."
+                className="w-full h-24 text-xs p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 mb-4 resize-none" />
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" className="flex-1 text-xs" onClick={() => { setShowNote(false); setNote('') }}>Cancel</Button>
+                <Button size="sm" className="flex-1 text-xs bg-red-600 hover:bg-red-700" onClick={() => submit(pendingChoice, note)} disabled={!note.trim() || loading}>
+                  {loading ? 'Submitting...' : 'Submit Feedback'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Social draft approval button
+function SocialDraftApprovalButton({ taskId, current, slug, portalPassword, onUpdate }) {
+  const [loading, setLoading] = useState(false)
+  const [showNote, setShowNote] = useState(false)
+  const [note, setNote] = useState('')
+  const [pendingChoice, setPendingChoice] = useState(null)
+  const val = current || 'Pending'
+
+  const set = async (choice) => {
+    if (choice === current) return
+    if (choice === 'Required Changes') {
+      setPendingChoice(choice)
+      setShowNote(true)
+      return
+    }
+    await submit(choice)
+  }
+
+  const submit = async (choice, feedbackNote = '') => {
+    setLoading(true)
+    try {
+      const headers = { 'Content-Type': 'application/json' }
+      if (portalPassword) headers['X-Portal-Password'] = portalPassword
+      const res = await fetch(`/api/portal/${slug}/tasks/${taskId}/approval`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ service: 'social', approval_type: 'content_draft', approval_value: choice, feedback: feedbackNote }),
+      })
+      if (res.ok) {
+        onUpdate(taskId, 'content_draft_approval', choice)
+        if (feedbackNote) onUpdate(taskId, 'draft_feedback', feedbackNote)
+        setShowNote(false)
+        setNote('')
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Failed to update approval')
+      }
+    } finally { setLoading(false) }
+  }
+
+  const colorClass = val === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' : val === 'Required Changes' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-gray-100 text-gray-500 border-gray-200'
+
+  return (
+    <div className="relative">
+      <Select value={val} onValueChange={set} disabled={loading}>
+        <SelectTrigger className={`h-8 text-xs rounded-full border ring-offset-0 focus:ring-1 focus:ring-blue-400 ${colorClass}`}>
+          {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {['Pending', 'Approved', 'Required Changes'].map(opt => (
+            <SelectItem key={opt} value={opt} className="text-xs">
+              <span className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${opt === 'Approved' ? 'bg-green-500' : opt === 'Required Changes' ? 'bg-red-500' : 'bg-gray-300'}`} />
+                {opt}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {showNote && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <Card className="w-full max-w-sm shadow-2xl">
+            <CardContent className="p-6">
+              <h3 className="text-sm font-bold text-gray-900 mb-2">Required Changes — Draft</h3>
+              <p className="text-xs text-gray-500 mb-4">Please describe what changes are needed for the content draft.</p>
+              <textarea autoFocus value={note} onChange={e => setNote(e.target.value)} placeholder="Describe what needs to change..."
+                className="w-full h-24 text-xs p-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 mb-4 resize-none" />
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" className="flex-1 text-xs" onClick={() => { setShowNote(false); setNote('') }}>Cancel</Button>
+                <Button size="sm" className="flex-1 text-xs bg-red-600 hover:bg-red-700" onClick={() => submit(pendingChoice, note)} disabled={!note.trim() || loading}>
+                  {loading ? 'Submitting...' : 'Submit Feedback'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ClientPortalPage() {
   const { slug } = useParams()
   const [password, setPassword] = useState('')
@@ -387,6 +551,7 @@ export default function ClientPortalPage() {
   }
 
   const handleApprovalUpdate = (taskId, val) => handleUpdate('task', taskId, 'client_approval', val)
+  const handleSocialFieldUpdate = (taskId, field, val) => handleUpdate('task', taskId, field, val)
   const handleContentApprovalUpdate = (contentId, field, val) => handleUpdate('content', contentId, field, val)
 
   // currentTasks MUST be a useMemo before early returns (Rules of Hooks)
@@ -568,7 +733,122 @@ export default function ClientPortalPage() {
 
             {currentTasks.length === 0 ? (
               <div className="text-center py-16 text-gray-400">No tasks yet.</div>
+            ) : portalService === 'social' ? (
+              /* ── Social Media — two-stage approval table ──────────────── */
+              <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+                <table className="w-full text-sm" style={{ minWidth: '1400px' }}>
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ minWidth: 110 }}>Format</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500" style={{ minWidth: 220 }}>Visual Brief</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500" style={{ minWidth: 220 }}>Content</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500" style={{ minWidth: 220 }}>Caption</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ minWidth: 170 }}>Idea Approval</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ minWidth: 130 }}>Content Draft</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ minWidth: 170 }}>Draft Approval</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ minWidth: 130 }}>Live Link</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ minWidth: 120 }}>Posting Date</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500" style={{ minWidth: 220 }}>Feedback</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {safeArray(currentTasks).map(task => (
+                      <tr key={task?.id} className="hover:bg-gray-50 transition-colors">
+                        {/* Format */}
+                        <td className="px-4 py-4">
+                          {task?.content_idea_sent && task?.format ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-purple-50 text-purple-700 border-purple-200 whitespace-nowrap">
+                              {task.format}
+                            </span>
+                          ) : <span className="text-xs text-gray-300">—</span>}
+                        </td>
+                        {/* Visual Brief */}
+                        <td className="px-4 py-4 text-xs text-gray-600">
+                          {task?.content_idea_sent ? (task?.visual_brief || <span className="text-gray-300">—</span>) : (
+                            <span className="inline-flex items-center gap-1 text-gray-300 text-[10px]"><Lock className="w-3 h-3" /> Not sent yet</span>
+                          )}
+                        </td>
+                        {/* Content */}
+                        <td className="px-4 py-4 text-xs text-gray-600">
+                          {task?.content_idea_sent ? (task?.content || <span className="text-gray-300">—</span>) : (
+                            <span className="inline-flex items-center gap-1 text-gray-300 text-[10px]"><Lock className="w-3 h-3" /> Not sent yet</span>
+                          )}
+                        </td>
+                        {/* Caption */}
+                        <td className="px-4 py-4 text-xs text-gray-600">
+                          {task?.content_idea_sent ? (task?.caption || <span className="text-gray-300">—</span>) : (
+                            <span className="inline-flex items-center gap-1 text-gray-300 text-[10px]"><Lock className="w-3 h-3" /> Not sent yet</span>
+                          )}
+                        </td>
+                        {/* Content Idea Approval */}
+                        <td className="px-4 py-4">
+                          {task?.content_idea_sent ? (
+                            <SocialIdeaApprovalButton
+                              taskId={task?.id}
+                              current={task?.content_idea_approval}
+                              slug={slug}
+                              portalPassword={portalPassword}
+                              onUpdate={handleSocialFieldUpdate}
+                            />
+                          ) : <span className="text-gray-300 text-xs">—</span>}
+                        </td>
+                        {/* Content Draft */}
+                        <td className="px-4 py-4">
+                          {task?.content_draft_sent && task?.content_draft_link ? (
+                            <a href={normalizeUrl(task.content_draft_link)} target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white text-xs font-bold transition-all shadow-sm whitespace-nowrap">
+                              <Link2 className="w-3.5 h-3.5" /> View Draft
+                            </a>
+                          ) : task?.content_draft_sent ? (
+                            <span className="text-gray-300 text-xs">No link</span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-gray-300 text-[10px]"><Lock className="w-3 h-3" /> Not sent</span>
+                          )}
+                        </td>
+                        {/* Draft Approval */}
+                        <td className="px-4 py-4">
+                          {task?.content_draft_sent ? (
+                            <SocialDraftApprovalButton
+                              taskId={task?.id}
+                              current={task?.content_draft_approval}
+                              slug={slug}
+                              portalPassword={portalPassword}
+                              onUpdate={handleSocialFieldUpdate}
+                            />
+                          ) : <span className="text-gray-300 text-xs">—</span>}
+                        </td>
+                        {/* Live Link */}
+                        <td className="px-4 py-4">
+                          {task?.live_link ? (
+                            <a href={normalizeUrl(task.live_link)} target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 text-green-700 hover:bg-green-600 hover:text-white text-xs font-bold transition-all shadow-sm whitespace-nowrap">
+                              <Link2 className="w-3.5 h-3.5" /> Live
+                            </a>
+                          ) : <span className="text-gray-300 text-xs">—</span>}
+                        </td>
+                        {/* Posting Date */}
+                        <td className="px-4 py-4 text-xs text-gray-500 whitespace-nowrap">
+                          {task?.posting_date || '—'}
+                        </td>
+                        {/* Feedback (shows whichever is most recent) */}
+                        <td className="px-4 py-4 text-xs text-gray-500 max-w-[180px]">
+                          {(task?.content_idea_approval === 'Required Changes' && task?.content_idea_feedback) ? (
+                            <span className="block text-red-600 text-[10px] bg-red-50 px-1.5 py-0.5 rounded border border-red-100 line-clamp-2" title={task.content_idea_feedback}>
+                              Idea: {task.content_idea_feedback}
+                            </span>
+                          ) : (task?.content_draft_approval === 'Required Changes' && task?.draft_feedback) ? (
+                            <span className="block text-red-600 text-[10px] bg-red-50 px-1.5 py-0.5 rounded border border-red-100 line-clamp-2" title={task.draft_feedback}>
+                              Draft: {task.draft_feedback}
+                            </span>
+                          ) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
+              /* ── SEO / Email / Paid — standard approval table ─────────── */
               <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
                 <table className="w-full text-sm" style={{ tableLayout: 'fixed', minWidth: '1000px' }}>
                   <thead>
@@ -586,7 +866,7 @@ export default function ClientPortalPage() {
                         style={{ width: TASK_COLUMN_WIDTHS.eta }}
                         onClick={() => handleTaskSort('eta')}
                       >
-                        {portalService === 'email' ? 'Campaign Live' : (portalService === 'social' ? 'Live Date' : 'ETA End')} {taskSortCol === 'eta' ? (taskSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
+                        {portalService === 'email' ? 'Campaign Live' : 'ETA End'} {taskSortCol === 'eta' ? (taskSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
                       </th>
                       <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.client_feedback || '200px' }}>Feedback</th>
                       <th

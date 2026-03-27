@@ -61,8 +61,16 @@ export async function GET(request, { params }) {
             fetchPromises.paidTasks = (service === 'paid' || service === 'all')
                 ? database.collection('paid_tasks').find({ client_id: clientData.id }).sort({ created_at: 1 }).toArray()
                 : Promise.resolve([])
+            // Only surface social tasks where content has been sent or a live link is available
             fetchPromises.socialTasks = (service === 'social' || service === 'all')
-                ? database.collection('social_tasks').find({ client_id: clientData.id }).sort({ created_at: 1 }).toArray()
+                ? database.collection('social_tasks').find({
+                    client_id: clientData.id,
+                    $or: [
+                        { content_idea_sent: true },
+                        { content_draft_sent: true },
+                        { live_link: { $exists: true, $nin: [null, ''] } }
+                    ]
+                }).sort({ created_at: 1 }).toArray()
                 : Promise.resolve([])
         }
 

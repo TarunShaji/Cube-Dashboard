@@ -14,6 +14,60 @@ export function EditableCell({ value, type = 'text', options = [], onSave, place
 
     const save = () => { setEditing(false); if (val !== (value || '')) onSave(val) }
 
+    // ── Expandable textarea type — modal overlay for long-text fields ──────────
+    if (type === 'expandable') {
+        return (
+            <>
+                <div
+                    onClick={() => !disabled && setEditing(true)}
+                    className={`rounded px-1 py-0.5 min-h-[24px] w-full transition-all overflow-hidden ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-blue-50 hover:ring-1 hover:ring-blue-200'}`}
+                    title={disabled ? 'Disabled' : (val || 'Click to edit')}
+                >
+                    <span className="text-xs text-gray-700 line-clamp-2 block">{val || <span className="text-gray-300">—</span>}</span>
+                </div>
+                {editing && !disabled && (
+                    <div
+                        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+                        onClick={save}
+                    >
+                        <div
+                            className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                                {placeholder !== '—' ? placeholder : 'Edit'}
+                            </p>
+                            <textarea
+                                ref={inputRef}
+                                value={val}
+                                onChange={e => setVal(e.target.value)}
+                                rows={8}
+                                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y"
+                                autoFocus
+                            />
+                            <div className="flex gap-2 mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => { setVal(value || ''); setEditing(false) }}
+                                    className="flex-1 h-9 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={save}
+                                    className="flex-1 h-9 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                >
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </>
+        )
+    }
+
     if (editing && !disabled) {
         if (type === 'select' || type === 'status' || type === 'priority' || type === 'approval' || type === 'internal_approval' || type === 'topic_approval' || type === 'blog_status' || type === 'blog_approval') {
             return (

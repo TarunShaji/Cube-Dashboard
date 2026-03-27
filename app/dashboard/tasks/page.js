@@ -16,7 +16,7 @@ import { Pagination } from '@/components/shared/Pagination'
 import { ClientSwitcher } from '@/components/shared/ClientSwitcher'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, statusColors, priorityColors, approvalColors, internalApprovalColors, TASK_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS, SOCIAL_COLUMN_WIDTHS } from '@/lib/constants'
+import { STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, statusColors, priorityColors, approvalColors, internalApprovalColors, TASK_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS, SOCIAL_COLUMN_WIDTHS, SOCIAL_FORMATS } from '@/lib/constants'
 import {
   DndContext,
   closestCenter,
@@ -154,7 +154,7 @@ function TasksPageContent() {
   const [saving, setSaving] = useState({})
   const [selected, setSelected] = useState([])
   const [bulkAction, setBulkAction] = useState('__none__')
-  const [newTask, setNewTask] = useState({ title: '', client_ids: [] })
+  const [newTask, setNewTask] = useState({ title: '', client_ids: [], format: '' })
   const [addingTask, setAddingTask] = useState(false)
   const [confirmConfig, setConfirmConfig] = useState(null)
   const [commentsModal, setCommentsModal] = useState(null)
@@ -196,7 +196,7 @@ function TasksPageContent() {
         return {
           endpoint: '/api/social-tasks',
           label: 'Social Media Tasks',
-          columns: ['serial', 'selection', 'client', 'title', 'comments', 'status', 'assigned', 'link', 'live_link', 'live_date', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['serial', 'selection', 'client', 'format', 'reference', 'visual_brief', 'content', 'caption', 'send_idea', 'content_idea_approval', 'content_idea_feedback', 'content_draft', 'send_draft', 'content_draft_approval', 'draft_feedback', 'live_link', 'posting_date', 'assigned', 'comments', 'actions'],
           widths: SOCIAL_COLUMN_WIDTHS
         }
       default:
@@ -343,6 +343,30 @@ function TasksPageContent() {
     setSaving(s => ({ ...s, [taskId]: false }))
   }
 
+  const sendSocialAction = async (taskId, action) => {
+    const task = safeArray(tasks).find(t => t.id === taskId)
+    setSaving(s => ({ ...s, [taskId]: true }))
+    try {
+      const res = await apiFetch(`${serviceConfig.endpoint}/${taskId}/${action}`, {
+        method: 'POST',
+        body: JSON.stringify({ updated_at: task?.updated_at })
+      })
+      if (!res.ok) {
+        const error = await res.json()
+        alert(error.error || 'Action failed')
+        loadData()
+      } else {
+        const data = await res.json()
+        if (data.task) {
+          setTasks(ts => ts.map(t => t.id === taskId ? data.task : t))
+        }
+      }
+    } catch (e) {
+      console.error('Social send action failed', e)
+    }
+    setSaving(s => ({ ...s, [taskId]: false }))
+  }
+
   const deleteTask = (taskId) => {
     setConfirmConfig({
       title: 'Delete Task',
@@ -373,17 +397,22 @@ function TasksPageContent() {
   }
 
   const addTask = async () => {
-    if (!newTask.title.trim() || newTask.client_ids.length === 0) return
+    const isSocial = service === 'social'
+    if (!isSocial && !newTask.title.trim()) return
+    if (newTask.client_ids.length === 0) return
     setAddingTask(true)
     try {
       // Fire one POST per selected client in parallel
       const results = await Promise.allSettled(
-        newTask.client_ids.map(client_id =>
-          apiFetch(serviceConfig.endpoint, {
+        newTask.client_ids.map(client_id => {
+          const taskBody = isSocial
+            ? { client_id, ...(newTask.format ? { format: newTask.format } : {}) }
+            : { title: newTask.title.trim(), client_id }
+          return apiFetch(serviceConfig.endpoint, {
             method: 'POST',
-            body: JSON.stringify({ title: newTask.title.trim(), client_id })
+            body: JSON.stringify(taskBody)
           })
-        )
+        })
       )
       const succeeded = results.filter(r => r.status === 'fulfilled' && r.value?.ok).length
       if (succeeded > 0) {
@@ -595,6 +624,91 @@ function TasksPageContent() {
                 />
               )}
               {colId === 'link' && <LinkCell value={task.link_url} onSave={v => updateTask(task.id, 'link_url', v)} />}
+              {/* ── Social Media columns ───────────────────────────────────── */}
+              {colId === 'format' && (
+                <EditableCell value={task.format} type="select" options={SOCIAL_FORMATS} onSave={v => updateTask(task.id, 'format', v)} />
+              )}
+              {colId === 'reference' && <EditableCell type="expandable" value={task.reference_link} placeholder="Reference" onSave={v => updateTask(task.id, 'reference_link', v)} />}
+              {colId === 'visual_brief' && <EditableCell type="expandable" value={task.visual_brief} placeholder="Visual Brief" onSave={v => updateTask(task.id, 'visual_brief', v)} />}
+              {colId === 'content' && <EditableCell type="expandable" value={task.content} placeholder="Content" onSave={v => updateTask(task.id, 'content', v)} />}
+              {colId === 'caption' && <EditableCell type="expandable" value={task.caption} placeholder="Caption" onSave={v => updateTask(task.id, 'caption', v)} />}
+              {colId === 'send_idea' && (
+                <Button
+                  size="sm"
+                  variant={task.content_idea_sent ? 'ghost' : 'default'}
+                  className={`h-7 px-2 text-[10px] uppercase tracking-wider font-bold whitespace-nowrap ${task.content_idea_sent ? 'text-green-600' : ''}`}
+                  disabled={saving[task.id]}
+                  onClick={() => setConfirmConfig({
+                    title: 'Send Content Idea',
+                    description: task.content_idea_sent
+                      ? 'This will re-send the content idea to the client and reset their approval. Are you sure?'
+                      : 'This will share the format, visual brief, content, and caption with the client for their approval. Are you sure?',
+                    onConfirm: () => sendSocialAction(task.id, 'send-idea')
+                  })}
+                >
+                  {task.content_idea_sent ? 'Re-send Idea' : 'Send Idea'}
+                </Button>
+              )}
+              {colId === 'content_idea_approval' && (
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                  task.content_idea_approval === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' :
+                  task.content_idea_approval === 'Required Changes' ? 'bg-red-100 text-red-700 border-red-200' :
+                  'bg-gray-100 text-gray-400 border-gray-200'
+                }`}>
+                  {task.content_idea_approval || 'Pending'}
+                </span>
+              )}
+              {colId === 'content_idea_feedback' && (
+                <div className="max-w-[150px]">
+                  {task.content_idea_approval === 'Required Changes' && task.content_idea_feedback ? (
+                    <button type="button" className="w-full text-left cursor-pointer" onClick={() => setFeedbackModal(task.content_idea_feedback)}>
+                      <span className="block text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 truncate hover:bg-red-100 transition-colors" title={task.content_idea_feedback}>
+                        {task.content_idea_feedback}
+                      </span>
+                    </button>
+                  ) : <span className="text-gray-300 text-xs">—</span>}
+                </div>
+              )}
+              {colId === 'content_draft' && <LinkCell value={task.content_draft_link} onSave={v => updateTask(task.id, 'content_draft_link', v)} />}
+              {colId === 'send_draft' && (
+                <Button
+                  size="sm"
+                  variant={task.content_draft_sent ? 'ghost' : 'default'}
+                  className={`h-7 px-2 text-[10px] uppercase tracking-wider font-bold whitespace-nowrap ${task.content_draft_sent ? 'text-green-600' : ''}`}
+                  disabled={saving[task.id]}
+                  onClick={() => setConfirmConfig({
+                    title: 'Send Content Draft',
+                    description: task.content_draft_sent
+                      ? 'This will re-send the content draft to the client and reset their draft approval. Are you sure?'
+                      : 'This will share the content draft link with the client for their approval. Are you sure?',
+                    onConfirm: () => sendSocialAction(task.id, 'send-draft')
+                  })}
+                >
+                  {task.content_draft_sent ? 'Re-send Draft' : 'Send Draft'}
+                </Button>
+              )}
+              {colId === 'content_draft_approval' && (
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                  task.content_draft_approval === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' :
+                  task.content_draft_approval === 'Required Changes' ? 'bg-red-100 text-red-700 border-red-200' :
+                  'bg-gray-100 text-gray-400 border-gray-200'
+                }`}>
+                  {task.content_draft_approval || 'Pending'}
+                </span>
+              )}
+              {colId === 'draft_feedback' && (
+                <div className="max-w-[150px]">
+                  {task.content_draft_approval === 'Required Changes' && task.draft_feedback ? (
+                    <button type="button" className="w-full text-left cursor-pointer" onClick={() => setFeedbackModal(task.draft_feedback)}>
+                      <span className="block text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 truncate hover:bg-red-100 transition-colors" title={task.draft_feedback}>
+                        {task.draft_feedback}
+                      </span>
+                    </button>
+                  ) : <span className="text-gray-300 text-xs">—</span>}
+                </div>
+              )}
+              {colId === 'posting_date' && <EditableCell value={task.posting_date} type="date" onSave={v => updateTask(task.id, 'posting_date', v)} />}
+              {/* ── End Social columns ─────────────────────────────────────── */}
               {colId === 'internal_approval' && (
                 <EditableCell
                   value={task.internal_approval || 'Pending'}
@@ -668,7 +782,12 @@ function TasksPageContent() {
     eta: 'ETA End', assigned: 'Assigned', link: 'Link', internal_approval: 'Internal Approval', send_link: 'Send Link',
     campaign_live: 'Campaign Live', live_data: 'Live Data',
     live_link: 'Live Link', live_date: 'Live Date',
-    client_approval: 'Client Approval', client_feedback: 'Client Feedback', comments: 'Comments', actions: ''
+    client_approval: 'Client Approval', client_feedback: 'Client Feedback', comments: 'Comments', actions: '',
+    // Social
+    format: 'Format', reference: 'Reference', visual_brief: 'Visual Brief', content: 'Content', caption: 'Caption',
+    send_idea: 'Send Idea', content_idea_approval: 'Idea Approval', content_idea_feedback: 'Idea Feedback',
+    content_draft: 'Draft', send_draft: 'Send Draft', content_draft_approval: 'Draft Approval', draft_feedback: 'Draft Feedback',
+    posting_date: 'Posting Date',
   }
   const columnSortFields = {
     client: 'client_name',
@@ -686,7 +805,12 @@ function TasksPageContent() {
     live_data: 'live_data',
     client_approval: 'client_approval',
     client_feedback: 'client_feedback_note',
-    comments: 'comments'
+    comments: 'comments',
+    // Social
+    format: 'format',
+    posting_date: 'posting_date',
+    content_idea_approval: 'content_idea_approval',
+    content_draft_approval: 'content_draft_approval',
   }
 
   return (
@@ -794,21 +918,33 @@ function TasksPageContent() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Title input */}
-            <div className="relative flex-1 min-w-[200px]">
-              <input
-                type="text" value={newTask.title}
-                onChange={e => setNewTask(n => ({ ...n, title: e.target.value }))}
-                onKeyDown={e => e.key === 'Enter' && addTask()}
-                placeholder={`Task title…`}
-                className="w-full h-9 text-xs px-3 py-1 bg-white border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400 transition-all"
-                disabled={addingTask}
-              />
-            </div>
+            {/* Title input (non-social) or Format dropdown (social) */}
+            {service === 'social' ? (
+              <Select value={newTask.format || '__none__'} onValueChange={v => setNewTask(n => ({ ...n, format: v === '__none__' ? '' : v }))}>
+                <SelectTrigger className="h-9 text-xs w-44 border-blue-200 bg-white">
+                  <SelectValue placeholder="Format (optional)…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" className="text-xs text-gray-400">No format yet</SelectItem>
+                  {SOCIAL_FORMATS.map(f => <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="relative flex-1 min-w-[200px]">
+                <input
+                  type="text" value={newTask.title}
+                  onChange={e => setNewTask(n => ({ ...n, title: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && addTask()}
+                  placeholder={`Task title…`}
+                  className="w-full h-9 text-xs px-3 py-1 bg-white border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400 transition-all"
+                  disabled={addingTask}
+                />
+              </div>
+            )}
 
             <Button
               onClick={addTask}
-              disabled={addingTask || !newTask.title.trim() || newTask.client_ids.length === 0}
+              disabled={addingTask || (service !== 'social' && !newTask.title.trim()) || newTask.client_ids.length === 0}
               className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all"
             >
               {addingTask

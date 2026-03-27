@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { connectToMongo } from '@/lib/db/mongodb'
 import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
 import { validateBody } from '@/lib/middleware/validation'
-import { applyTaskTransition } from '@/lib/engine/lifecycle'
+import { applySocialTaskTransition } from '@/lib/engine/lifecycle'
 import { SocialBulkSchema } from '@/lib/db/schemas/social.schema'
 import { getActiveTeamMemberIdSet, normalizeAssignedTo } from '@/lib/team/assignee'
 
@@ -23,7 +23,7 @@ export async function POST(request) {
         const validMemberIds = await getActiveTeamMemberIdSet(database)
         const finalTasks = tasks.map(t => {
             const assignedTo = normalizeAssignedTo(t.assigned_to, validMemberIds)
-            return applyTaskTransition(null, {
+            return applySocialTaskTransition(null, {
                 ...t,
                 ...(assignedTo !== undefined ? { assigned_to: assignedTo } : {}),
                 id: uuidv4()

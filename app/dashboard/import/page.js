@@ -473,19 +473,21 @@ function FormatGuide({ actionLabel }) {
       <CardHeader className="pb-2"><CardTitle className="text-sm font-bold text-pink-600">Social Media Tasks: Detected Columns</CardTitle></CardHeader>
       <CardContent className="text-xs text-gray-500 space-y-4">
         <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Use these headers only</p>
+          <p className="font-bold text-gray-700 mb-1.5 uppercase tracking-wider text-[10px]">Supported column headers</p>
           <ul className="space-y-1.5">
-            <li className="text-gray-700">Task</li>
-            <li className="text-gray-700">Status</li>
-            <li className="text-gray-700">Assigned</li>
-            <li className="text-gray-700">Link</li>
-            <li className="text-gray-700">Live Link</li>
-            <li className="text-gray-700">Live Date</li>
-            <li className="text-gray-700">Internal Approval</li>
+            <li className="text-gray-700"><span className="font-medium">Format</span> <span className="text-gray-400">or</span> Formats</li>
+            <li className="text-gray-700"><span className="font-medium">Reference</span> <span className="text-gray-400">or</span> References</li>
+            <li className="text-gray-700"><span className="font-medium">Visual</span> <span className="text-gray-400">or</span> Visual Brief / Visuals</li>
+            <li className="text-gray-700"><span className="font-medium">Content</span></li>
+            <li className="text-gray-700"><span className="font-medium">Caption</span></li>
+            <li className="text-gray-700"><span className="font-medium">Content Draft</span> <span className="text-gray-400">or</span> Draft Link</li>
+            <li className="text-gray-700"><span className="font-medium">Post Date</span> <span className="text-gray-400">or</span> Posting Date</li>
+            <li className="text-gray-700"><span className="font-medium">Live Link</span></li>
+            <li className="text-gray-700"><span className="font-medium">Assigned</span> <span className="text-gray-400">or</span> Assigned To</li>
           </ul>
         </div>
         <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-blue-700 leading-normal">
-          <strong>Note:</strong> Assigned To is not mapped from the sheet — select the team member in the dashboard after import.
+          <strong>Note:</strong> All headers are case-insensitive. A row must have at least one of Format, Visual, Content, or Caption to be imported.
         </div>
       </CardContent>
     </Card>
@@ -1147,7 +1149,7 @@ function SocialCSVImport({ clients }) {
       if (!p) { setParseError('Could not parse. Ensure header row is present.'); setParsed(null); setMappedRows([]); return }
       const mapped = p.rows.map(r => rowToSocialTask(r, p.headers, 'preview')).filter(Boolean)
       if (mapped.length === 0) {
-        setParsed({ ...p, validCount: 0, unsupported: true, unsupportedMsg: 'No rows with a recognisable "Social Media Task" or "Task Name" column found.' })
+        setParsed({ ...p, validCount: 0, unsupported: true, unsupportedMsg: 'No importable rows found. Each row needs at least one of: Format, Visual, Content, or Caption.' })
         setMappedRows([])
         return
       }

@@ -1,12 +1,21 @@
 import { NextResponse } from 'next/server'
 import { connectToMongo } from '@/lib/db/mongodb'
 import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
-import { applyTaskTransition, assertTaskInvariant } from '@/lib/engine/lifecycle'
+import { applySocialTaskTransition, assertSocialTaskInvariant } from '@/lib/engine/lifecycle'
 import { validateBody, rejectFields } from '@/lib/middleware/validation'
 import { SocialTaskUpdateSchema } from '@/lib/db/schemas/social.schema'
 import { getActiveTeamMemberIdSet, normalizeAssignedTo } from '@/lib/team/assignee'
 
 export const runtime = 'nodejs';
+
+const FORBIDDEN_FIELDS = [
+    'content_idea_approval',
+    'content_idea_feedback',
+    'content_draft_approval',
+    'draft_feedback',
+    'content_idea_sent',
+    'content_draft_sent',
+];
 
 export async function GET(request, { params }) {
     return withAuth(request, async () => {
@@ -18,11 +27,6 @@ export async function GET(request, { params }) {
         return handleCORS(NextResponse.json(result))
     })
 }
-
-const FORBIDDEN_FIELDS = [
-    'client_approval',
-    'client_feedback_at'
-];
 
 export async function PUT(request, { params }) {
     return withAuth(request, async () => {
@@ -45,22 +49,22 @@ export async function PUT(request, { params }) {
             const validMemberIds = await getActiveTeamMemberIdSet(database)
             cleanUpdate.assigned_to = normalizeAssignedTo(cleanUpdate.assigned_to, validMemberIds)
         }
+
         const current = await database.collection('social_tasks').findOne({ id: taskId })
         if (!current) return handleCORS(NextResponse.json({ error: 'Social task not found' }, { status: 404 }))
 
-        // Concurrency Control
         if (body.updated_at && current.updated_at) {
             const clientTime = new Date(body.updated_at).getTime()
             const dbTime = new Date(current.updated_at).getTime()
             if (clientTime < dbTime) {
                 return handleCORS(NextResponse.json({
                     error: 'Concurrency error: Task has been modified by another user',
-                    current: current
+                    current
                 }, { status: 409 }))
             }
         }
 
-        const finalState = applyTaskTransition(current, cleanUpdate);
+        const finalState = applySocialTaskTransition(current, cleanUpdate)
 
         const result = await database.collection('social_tasks').updateOne(
             { id: taskId, updated_at: current.updated_at },
@@ -72,7 +76,7 @@ export async function PUT(request, { params }) {
         }
 
         const updated = await database.collection('social_tasks').findOne({ id: taskId })
-        assertTaskInvariant(updated);
+        assertSocialTaskInvariant(updated)
 
         const { _id, ...responseBody } = updated
         return handleCORS(NextResponse.json(responseBody))

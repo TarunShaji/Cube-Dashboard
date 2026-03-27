@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { connectToMongo } from '@/lib/db/mongodb'
 import { handleCORS, withAuth } from '@/lib/middleware/api-utils'
-import { applyTaskTransition } from '@/lib/engine/lifecycle'
+import { applySocialTaskTransition } from '@/lib/engine/lifecycle'
 import { getActiveTeamMemberIdSet, normalizeAssignedTo } from '@/lib/team/assignee'
 
 export const runtime = 'nodejs';
@@ -32,7 +32,7 @@ export async function POST(request) {
 
             for (const task of tasks) {
                 try {
-                    const finalUpdate = applyTaskTransition(task, normalizedUpdates)
+                    const finalUpdate = applySocialTaskTransition(task, normalizedUpdates)
                     finalUpdate.updated_at = new Date()
 
                     const result = await database.collection('social_tasks').updateOne(
