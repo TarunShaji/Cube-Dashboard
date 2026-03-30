@@ -811,7 +811,17 @@ function ClientDetailPageContent() {
       return aIdx - bIdx
     })
   }, [allTasks, taskSortConfig, memberMap])
-  const sortedContent = useMemo(() => sortRows(allContent, contentSortConfig, getContentSortableValue), [allContent, contentSortConfig])
+  const sortedContent = useMemo(() => {
+    if (contentSortConfig.field) return sortRows(allContent, contentSortConfig, getContentSortableValue)
+    return [...allContent].sort((a, b) => {
+      const aHas = !!a?.published_date
+      const bHas = !!b?.published_date
+      if (!aHas && !bHas) return 0
+      if (!aHas) return 1
+      if (!bHas) return -1
+      return new Date(b.published_date).getTime() - new Date(a.published_date).getTime()
+    })
+  }, [allContent, contentSortConfig])
   const approvalCount = useMemo(() => allTasks.filter(t => t?.client_approval === 'Approved').length, [allTasks])
   const changesCount = useMemo(() => allTasks.filter(t => t?.client_approval === 'Required Changes' || t?.client_approval === 'Changes Required').length, [allTasks])
 

@@ -23,7 +23,7 @@ export function EditableCell({ value, type = 'text', options = [], onSave, place
                     className={`rounded px-1 py-0.5 min-h-[24px] w-full transition-all overflow-hidden ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-blue-50 hover:ring-1 hover:ring-blue-200'}`}
                     title={disabled ? 'Disabled' : (val || 'Click to edit')}
                 >
-                    <span className="text-xs text-gray-700 line-clamp-2 block">{val || <span className="text-gray-300">—</span>}</span>
+                    <span className="text-xs text-gray-700 line-clamp-2">{val || <span className="text-gray-300">—</span>}</span>
                 </div>
                 {editing && !disabled && (
                     <div

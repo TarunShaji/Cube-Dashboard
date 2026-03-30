@@ -426,18 +426,87 @@ function SocialDraftApprovalButton({ taskId, current, slug, portalPassword, onUp
   )
 }
 
+function ExpandableText({ text }) {
+  const [open, setOpen] = useState(false)
+  if (!text) return <span className="text-gray-300">—</span>
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-xs text-gray-600 text-left w-full line-clamp-2 hover:text-blue-600 transition-colors cursor-pointer"
+      >
+        {text}
+      </button>
+      {open && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setOpen(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+            <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{text}</p>
+            <button type="button" onClick={() => setOpen(false)} className="mt-4 w-full h-9 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Close</button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function sectionToState(section) {
+  if (!section || section === 'seo') return { tab: 'tasks', service: 'seo' }
+  if (section === 'email') return { tab: 'tasks', service: 'email' }
+  if (section === 'paid-ads') return { tab: 'tasks', service: 'paid' }
+  if (section === 'social') return { tab: 'tasks', service: 'social' }
+  if (section === 'content') return { tab: 'content', service: 'seo' }
+  if (section === 'resources') return { tab: 'resources', service: 'seo' }
+  if (section === 'reports') return { tab: 'reports', service: 'seo' }
+  return { tab: 'tasks', service: 'seo' }
+}
+
+function stateToSection(tab, service) {
+  if (tab === 'content') return 'content'
+  if (tab === 'resources') return 'resources'
+  if (tab === 'reports') return 'reports'
+  if (service === 'email') return 'email'
+  if (service === 'paid') return 'paid-ads'
+  if (service === 'social') return 'social'
+  return null
+}
+
 export default function ClientPortalPage() {
-  const { slug } = useParams()
+  const { slug, section } = useParams()
+  const initState = sectionToState(section)
   const [password, setPassword] = useState('')
   const [portalPassword, setPortalPassword] = useState('')
   const [passwordError, setPasswordError] = useState('')
   const [showAddResource, setShowAddResource] = useState(false)
   const [resourceForm, setResourceForm] = useState({ name: '', url: '' })
   const [addingResource, setAddingResource] = useState(false)
-  const [portalService, setPortalService] = useState('seo')
-  const [activeTab, setActiveTab] = useState('tasks')
+  const [portalService, setPortalServiceState] = useState(initState.service)
+  const [activeTab, setActiveTabState] = useState(initState.tab)
   const [taskSortCol, setTaskSortCol] = useState(null)
   const [taskSortDir, setTaskSortDir] = useState('asc')
+
+  const setPortalService = (service) => {
+    setPortalServiceState(service)
+    const sec = stateToSection('tasks', service)
+    window.history.pushState(null, '', `/portal/${slug}${sec ? `/${sec}` : ''}`)
+  }
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab)
+    const sec = stateToSection(tab, tab === 'tasks' ? portalService : 'seo')
+    window.history.pushState(null, '', `/portal/${slug}${sec ? `/${sec}` : ''}`)
+  }
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const parts = window.location.pathname.split('/').filter(Boolean)
+      const sec = parts[2]
+      const { tab, service } = sectionToState(sec)
+      setActiveTabState(tab)
+      setPortalServiceState(service)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   const handleTaskSort = (col) => {
     if (taskSortCol === col) {
@@ -712,8 +781,9 @@ export default function ClientPortalPage() {
                 ))}
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-500">Switch Service:</span>
+              <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl px-3 py-2 shadow-sm">
+                <span className="text-xs font-bold text-gray-700 whitespace-nowrap">Switch Service</span>
+                <div className="w-px h-4 bg-gray-200" />
                 <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
                   {[['seo', 'SEO Tasks'], ['email', 'Email Tasks'], ['paid', 'Paid Ads'], ['social', 'Social Media']].map(([val, label]) => (
                     <button
@@ -763,20 +833,20 @@ export default function ClientPortalPage() {
                           ) : <span className="text-xs text-gray-300">—</span>}
                         </td>
                         {/* Visual Brief */}
-                        <td className="px-4 py-4 text-xs text-gray-600">
-                          {task?.content_idea_sent ? (task?.visual_brief || <span className="text-gray-300">—</span>) : (
+                        <td className="px-4 py-4">
+                          {task?.content_idea_sent ? <ExpandableText text={task?.visual_brief} /> : (
                             <span className="inline-flex items-center gap-1 text-gray-300 text-[10px]"><Lock className="w-3 h-3" /> Not sent yet</span>
                           )}
                         </td>
                         {/* Content */}
-                        <td className="px-4 py-4 text-xs text-gray-600">
-                          {task?.content_idea_sent ? (task?.content || <span className="text-gray-300">—</span>) : (
+                        <td className="px-4 py-4">
+                          {task?.content_idea_sent ? <ExpandableText text={task?.content} /> : (
                             <span className="inline-flex items-center gap-1 text-gray-300 text-[10px]"><Lock className="w-3 h-3" /> Not sent yet</span>
                           )}
                         </td>
                         {/* Caption */}
-                        <td className="px-4 py-4 text-xs text-gray-600">
-                          {task?.content_idea_sent ? (task?.caption || <span className="text-gray-300">—</span>) : (
+                        <td className="px-4 py-4">
+                          {task?.content_idea_sent ? <ExpandableText text={task?.caption} /> : (
                             <span className="inline-flex items-center gap-1 text-gray-300 text-[10px]"><Lock className="w-3 h-3" /> Not sent yet</span>
                           )}
                         </td>
@@ -861,13 +931,6 @@ export default function ClientPortalPage() {
                       >
                         Status {taskSortCol === 'status' ? (taskSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
                       </th>
-                      <th
-                        className="text-left px-4 py-2 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
-                        style={{ width: TASK_COLUMN_WIDTHS.eta }}
-                        onClick={() => handleTaskSort('eta')}
-                      >
-                        {portalService === 'email' ? 'Campaign Live' : 'ETA End'} {taskSortCol === 'eta' ? (taskSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
-                      </th>
                       <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.client_feedback || '200px' }}>Feedback</th>
                       <th
                         className="text-left px-4 py-2 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
@@ -883,6 +946,13 @@ export default function ClientPortalPage() {
                       >
                         Your Approval {taskSortCol === 'approval' ? (taskSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
                       </th>
+                      <th
+                        className="text-left px-4 py-2 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
+                        style={{ width: TASK_COLUMN_WIDTHS.eta }}
+                        onClick={() => handleTaskSort('eta')}
+                      >
+                        {portalService === 'email' ? 'Campaign Live' : 'ETA End'} {taskSortCol === 'eta' ? (taskSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -894,7 +964,6 @@ export default function ClientPortalPage() {
                             {task?.status}
                           </span>
                         </td>
-                        <td className="px-4 py-4 text-xs text-gray-500 truncate">{task?.eta_end || task?.campaign_live_date || task?.live_date || task?.campaign_live || '—'}</td>
                         <td className="px-4 py-4 text-xs text-gray-500 truncate" title={task?.client_approval === 'Required Changes' ? task?.client_feedback_note : (task?.remarks || '')}>
                           {task?.client_approval === 'Required Changes' ? task?.client_feedback_note : (task?.remarks || '—')}
                         </td>
@@ -921,6 +990,7 @@ export default function ClientPortalPage() {
                             onUpdate={handleApprovalUpdate}
                           />
                         </td>
+                        <td className="px-4 py-4 text-xs text-gray-500 truncate">{task?.eta_end || task?.campaign_live_date || task?.live_date || task?.campaign_live || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
