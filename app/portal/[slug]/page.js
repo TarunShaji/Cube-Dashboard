@@ -707,9 +707,16 @@ export default function ClientPortalPage() {
   // Only set the default service once — on first data load.
   // Without the ref guard, this re-runs every time progressData changes (i.e. on every
   // service switch refetch), resetting the user's selection back to the client default.
+  // ALSO: if the URL already specifies a service section (email/paid-ads/social),
+  // skip this entirely so the URL-derived state is preserved.
   const serviceInitialized = useRef(false)
   useEffect(() => {
     if (serviceInitialized.current) return
+    // If the URL already specifies a service section, honour it — don't override
+    if (section && ['email', 'paid-ads', 'social', 'seo'].includes(section)) {
+      serviceInitialized.current = true
+      return
+    }
     if (client?.service_type) {
       serviceInitialized.current = true
       const srvArr = Array.isArray(client.service_type) ? client.service_type : (client.service_type ? [client.service_type] : [])
