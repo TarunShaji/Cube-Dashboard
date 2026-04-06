@@ -16,7 +16,7 @@ import { Pagination } from '@/components/shared/Pagination'
 import { ClientSwitcher } from '@/components/shared/ClientSwitcher'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, statusColors, priorityColors, approvalColors, internalApprovalColors, TASK_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS, SOCIAL_COLUMN_WIDTHS, SOCIAL_FORMATS } from '@/lib/constants'
+import { STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, SOCIAL_STATUSES, SOCIAL_INTERNAL_APPROVALS, statusColors, priorityColors, approvalColors, internalApprovalColors, socialInternalApprovalColors, TASK_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS, SOCIAL_COLUMN_WIDTHS, SOCIAL_FORMATS } from '@/lib/constants'
 import {
   DndContext,
   closestCenter,
@@ -142,6 +142,278 @@ function AssigneeCell({ task, members, memberMap, onSave }) {
 }
 
 
+function AssignedMemberSelect({ value, members, onSave }) {
+  const ids = value ? (Array.isArray(value) ? value : [value]) : []
+  const names = ids.map(id => safeArray(members).find(m => m?.id === id)?.name).filter(Boolean)
+  const label = names.length ? names.join(', ') : 'Unassigned'
+
+  const setForMember = (memberId, checked) => {
+    const nextSet = new Set(ids)
+    if (checked) nextSet.add(memberId)
+    else nextSet.delete(memberId)
+    const next = [...nextSet]
+    if (next.length === 0) onSave(null)
+    else if (next.length === 1) onSave(next[0])
+    else onSave(next)
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className={`h-9 w-full px-3 text-xs rounded-md border bg-white flex items-center gap-1.5 ${ids.length > 0 ? 'border-blue-400 text-blue-700 font-semibold' : 'border-gray-200 text-gray-400'}`}>
+          <span className="truncate flex-1 text-left">{label}</span>
+          <span className="text-gray-400 flex-shrink-0">▾</span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-64 max-h-72 overflow-y-auto">
+        <DropdownMenuLabel className="text-xs">Assign Members</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuCheckboxItem
+          checked={ids.length === 0}
+          onCheckedChange={(checked) => { if (checked) onSave(null) }}
+          className="text-xs"
+        >
+          Unassigned
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuSeparator />
+        {safeArray(members).map((m) => (
+          <DropdownMenuCheckboxItem
+            key={m?.id}
+            checked={ids.includes(m?.id)}
+            onCheckedChange={(checked) => setForMember(m?.id, checked)}
+            className="text-xs"
+          >
+            {m?.name}
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function buildAddTaskBody(srv, data, clientId) {
+  const pick = v => (v != null && v !== '') ? v : undefined
+  const base = { client_id: clientId }
+  if (srv === 'social') {
+    const body = { ...base }
+    if (pick(data.format)) body.format = data.format
+    if (pick(data.status)) body.status = data.status
+    if (pick(data.reference_link)) body.reference_link = data.reference_link
+    if (pick(data.visual_brief)) body.visual_brief = data.visual_brief
+    if (pick(data.content)) body.content = data.content
+    if (pick(data.caption)) body.caption = data.caption
+    if (pick(data.posting_date)) body.posting_date = data.posting_date
+    if (pick(data.internal_approval)) body.internal_approval = data.internal_approval
+    if (data.assigned_to != null) body.assigned_to = data.assigned_to
+    if (pick(data.comments)) body.comments = data.comments
+    return body
+  }
+  const body = { ...base, title: data.title.trim() }
+  if (pick(data.status)) body.status = data.status
+  if (data.assigned_to != null) body.assigned_to = data.assigned_to
+  if (pick(data.link_url)) body.link_url = data.link_url
+  if (pick(data.comments)) body.comments = data.comments
+  if (srv === 'seo') {
+    if (pick(data.category)) body.category = data.category
+    if (pick(data.priority)) body.priority = data.priority
+    if (pick(data.eta_end)) body.eta_end = data.eta_end
+  }
+  if (srv === 'email') {
+    if (pick(data.campaign_live_date)) body.campaign_live_date = data.campaign_live_date
+    if (pick(data.live_data)) body.live_data = data.live_data
+  }
+  return body
+}
+
+function AddTaskModal({ isOpen, onClose, service, clients, members, onAdd, isAdding }) {
+  const isSocial = service === 'social'
+  const mkEmpty = () => ({
+    client_ids: [], title: '', format: '', category: '', status: '',
+    priority: '', eta_end: '', assigned_to: null, comments: '', link_url: '',
+    reference_link: '', visual_brief: '', content: '', caption: '',
+    posting_date: '', internal_approval: '',
+    campaign_live_date: '', live_data: '',
+  })
+  const [form, setForm] = useState(mkEmpty)
+  useEffect(() => { if (isOpen) setForm(mkEmpty()) }, [isOpen])
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const canAdd = form.client_ids.length > 0 && (isSocial || form.title.trim())
+  const statusOpts = service === 'social' ? SOCIAL_STATUSES : STATUSES
+  const lbl = { seo: 'SEO', email: 'Email', paid: 'Paid Ads', social: 'Social Media' }[service] || service
+
+  return (
+    <Dialog open={isOpen} onOpenChange={o => { if (!o) onClose() }}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add {lbl} Task</DialogTitle>
+          <DialogDescription className="text-xs">Fill in the details below. Fields marked * are required.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 pt-1">
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Clients <span className="text-red-500">*</span></label>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" className={`h-9 w-full px-3 text-xs rounded-md border bg-white flex items-center gap-1.5 ${form.client_ids.length > 0 ? 'border-blue-400 text-blue-700 font-semibold' : 'border-gray-200 text-gray-400'}`}>
+                  {form.client_ids.length === 0 ? 'Select clients…' : form.client_ids.length === 1 ? (safeArray(clients).find(c => c?.id === form.client_ids[0])?.name || '1 client') : `${form.client_ids.length} clients selected`}
+                  <span className="ml-auto text-gray-400">▾</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64 max-h-72 overflow-y-auto">
+                <DropdownMenuLabel className="text-xs flex items-center justify-between">
+                  <span>Select Clients</span>
+                  {form.client_ids.length > 0 && <button className="text-[10px] text-gray-400 hover:text-red-500 font-normal" onClick={() => set('client_ids', [])}>Clear all</button>}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {safeArray(clients).map(c => (
+                  <DropdownMenuCheckboxItem key={c?.id} checked={form.client_ids.includes(c?.id)} onCheckedChange={checked => set('client_ids', checked ? [...form.client_ids, c.id] : form.client_ids.filter(id => id !== c.id))} className="text-xs">{c?.name}</DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {isSocial ? (
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Format</label>
+              <Select value={form.format || '__none__'} onValueChange={v => set('format', v === '__none__' ? '' : v)}>
+                <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Select format…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" className="text-xs text-gray-400">No format</SelectItem>
+                  {SOCIAL_FORMATS.map(f => <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Title <span className="text-red-500">*</span></label>
+              <Input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Task title…" className="h-9 text-xs border-gray-200" autoFocus />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Status</label>
+              <Select value={form.status || '__none__'} onValueChange={v => set('status', v === '__none__' ? '' : v)}>
+                <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Status…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" className="text-xs text-gray-400">No status</SelectItem>
+                  {statusOpts.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {service === 'seo' && (
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Priority</label>
+                <Select value={form.priority || '__none__'} onValueChange={v => set('priority', v === '__none__' ? '' : v)}>
+                  <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Priority…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs text-gray-400">No priority</SelectItem>
+                    {PRIORITIES.map(p => <SelectItem key={p} value={p} className="text-xs">{p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {isSocial && (
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Internal Approval</label>
+                <Select value={form.internal_approval || '__none__'} onValueChange={v => set('internal_approval', v === '__none__' ? '' : v)}>
+                  <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Approval…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs text-gray-400">Not set</SelectItem>
+                    {SOCIAL_INTERNAL_APPROVALS.map(a => <SelectItem key={a} value={a} className="text-xs">{a}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          {service === 'seo' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Category</label>
+                <Select value={form.category || '__none__'} onValueChange={v => set('category', v === '__none__' ? '' : v)}>
+                  <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Category…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs text-gray-400">No category</SelectItem>
+                    {CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">ETA</label>
+                <Input type="date" value={form.eta_end || ''} onChange={e => set('eta_end', e.target.value || null)} className="h-9 text-xs border-gray-200" />
+              </div>
+            </div>
+          )}
+
+          {isSocial && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">Reference Link</label>
+                  <Input value={form.reference_link || ''} onChange={e => set('reference_link', e.target.value || null)} placeholder="https://…" className="h-9 text-xs border-gray-200" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">Posting Date</label>
+                  <Input type="date" value={form.posting_date || ''} onChange={e => set('posting_date', e.target.value || null)} className="h-9 text-xs border-gray-200" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Visual Brief</label>
+                <textarea value={form.visual_brief || ''} onChange={e => set('visual_brief', e.target.value || null)} rows={2} placeholder="Describe the visual…" className="w-full border border-gray-200 rounded-md px-3 py-2 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Content</label>
+                <textarea value={form.content || ''} onChange={e => set('content', e.target.value || null)} rows={3} placeholder="Content / copy…" className="w-full border border-gray-200 rounded-md px-3 py-2 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Caption</label>
+                <textarea value={form.caption || ''} onChange={e => set('caption', e.target.value || null)} rows={2} placeholder="Social caption…" className="w-full border border-gray-200 rounded-md px-3 py-2 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y" />
+              </div>
+            </>
+          )}
+
+          {!isSocial && (
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Link URL</label>
+              <Input value={form.link_url || ''} onChange={e => set('link_url', e.target.value || null)} placeholder="https://…" className="h-9 text-xs border-gray-200" />
+            </div>
+          )}
+
+          {service === 'email' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Campaign Live Date</label>
+                <Input type="date" value={form.campaign_live_date || ''} onChange={e => set('campaign_live_date', e.target.value || null)} className="h-9 text-xs border-gray-200" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Live Data Date</label>
+                <Input type="date" value={form.live_data || ''} onChange={e => set('live_data', e.target.value || null)} className="h-9 text-xs border-gray-200" />
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Assigned To</label>
+            <AssignedMemberSelect value={form.assigned_to} members={members} onSave={v => set('assigned_to', v)} />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Comments</label>
+            <textarea value={form.comments || ''} onChange={e => set('comments', e.target.value || null)} rows={3} placeholder="Notes or comments…" className="w-full border border-gray-200 rounded-md px-3 py-2 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y" />
+          </div>
+        </div>
+
+        <DialogFooter className="pt-4">
+          <Button variant="outline" onClick={onClose} className="text-xs">Cancel</Button>
+          <Button onClick={() => onAdd(form)} disabled={!canAdd || isAdding} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">
+            {isAdding ? 'Adding…' : form.client_ids.length > 1 ? `Add to ${form.client_ids.length} Clients` : 'Add Task'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function TasksPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -156,6 +428,7 @@ function TasksPageContent() {
   const [bulkAction, setBulkAction] = useState('__none__')
   const [newTask, setNewTask] = useState({ title: '', client_ids: [], format: '' })
   const [addingTask, setAddingTask] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
   const [confirmConfig, setConfirmConfig] = useState(null)
   const [commentsModal, setCommentsModal] = useState(null)
   const [feedbackModal, setFeedbackModal] = useState(null)
@@ -196,7 +469,7 @@ function TasksPageContent() {
         return {
           endpoint: '/api/social-tasks',
           label: 'Social Media Tasks',
-          columns: ['serial', 'selection', 'client', 'format', 'reference', 'visual_brief', 'content', 'caption', 'send_idea', 'content_idea_approval', 'content_idea_feedback', 'content_draft', 'send_draft', 'content_draft_approval', 'draft_feedback', 'live_link', 'posting_date', 'assigned', 'comments', 'actions'],
+          columns: ['serial', 'selection', 'client', 'format', 'reference', 'visual_brief', 'content', 'caption', 'social_internal_approval', 'send_idea', 'content_idea_approval', 'content_idea_feedback', 'content_draft', 'send_draft', 'content_draft_approval', 'draft_feedback', 'live_link', 'posting_date', 'social_status', 'assigned', 'comments', 'actions'],
           widths: SOCIAL_COLUMN_WIDTHS
         }
       default:
@@ -218,7 +491,7 @@ function TasksPageContent() {
       else params.set(key, value)
     })
     if (!updates.page && page !== 1) params.delete('page')
-    router.push(`/dashboard/tasks?${params.toString()}`)
+    router.push(`/dashboard/tasks?${params.toString()}`, { scroll: false })
   }
 
   useEffect(() => {
@@ -396,31 +669,25 @@ function TasksPageContent() {
     loadData()
   }
 
-  const addTask = async () => {
+  const addTask = async (formData) => {
     const isSocial = service === 'social'
-    if (!isSocial && !newTask.title.trim()) return
-    if (newTask.client_ids.length === 0) return
+    if (!isSocial && !formData.title?.trim()) return
+    if (!formData.client_ids?.length) return
     setAddingTask(true)
     try {
-      // Fire one POST per selected client in parallel
       const results = await Promise.allSettled(
-        newTask.client_ids.map(client_id => {
-          const taskBody = isSocial
-            ? { client_id, ...(newTask.format ? { format: newTask.format } : {}) }
-            : { title: newTask.title.trim(), client_id }
-          return apiFetch(serviceConfig.endpoint, {
-            method: 'POST',
-            body: JSON.stringify(taskBody)
-          })
+        formData.client_ids.map(client_id => {
+          const body = buildAddTaskBody(service, formData, client_id)
+          return apiFetch(serviceConfig.endpoint, { method: 'POST', body: JSON.stringify(body) })
         })
       )
       const succeeded = results.filter(r => r.status === 'fulfilled' && r.value?.ok).length
       if (succeeded > 0) {
-        setNewTask(n => ({ ...n, title: '' }))
+        setShowAddModal(false)
         loadData()
       }
-      if (succeeded < newTask.client_ids.length) {
-        alert(`Warning: ${newTask.client_ids.length - succeeded} task(s) failed to save.`)
+      if (succeeded < formData.client_ids.length) {
+        alert(`Warning: ${formData.client_ids.length - succeeded} task(s) failed to save.`)
       }
     } catch (e) {
       console.error('Add task failed', e)
@@ -628,6 +895,9 @@ function TasksPageContent() {
               {colId === 'format' && (
                 <EditableCell value={task.format} type="select" options={SOCIAL_FORMATS} onSave={v => updateTask(task.id, 'format', v)} />
               )}
+              {colId === 'social_status' && (
+                <EditableCell value={task.status} type="status" options={SOCIAL_STATUSES} onSave={v => updateTask(task.id, 'status', v)} />
+              )}
               {colId === 'reference' && <EditableCell type="expandable" value={task.reference_link} placeholder="Reference" onSave={v => updateTask(task.id, 'reference_link', v)} />}
               {colId === 'visual_brief' && <EditableCell type="expandable" value={task.visual_brief} placeholder="Visual Brief" onSave={v => updateTask(task.id, 'visual_brief', v)} />}
               {colId === 'content' && <EditableCell type="expandable" value={task.content} placeholder="Content" onSave={v => updateTask(task.id, 'content', v)} />}
@@ -643,7 +913,9 @@ function TasksPageContent() {
                     description: task.content_idea_sent
                       ? 'This will re-send the content idea to the client and reset their approval. Are you sure?'
                       : 'This will share the format, visual brief, content, and caption with the client for their approval. Are you sure?',
-                    onConfirm: () => sendSocialAction(task.id, 'send-idea')
+                    onConfirm: () => sendSocialAction(task.id, 'send-idea'),
+                    confirmText: 'Send',
+                    confirmClass: 'bg-blue-600 hover:bg-blue-700 text-white'
                   })}
                 >
                   {task.content_idea_sent ? 'Re-send Idea' : 'Send Idea'}
@@ -653,6 +925,7 @@ function TasksPageContent() {
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                   task.content_idea_approval === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' :
                   task.content_idea_approval === 'Required Changes' ? 'bg-red-100 text-red-700 border-red-200' :
+                  task.content_idea_approval === 'Rejected' ? 'bg-orange-100 text-orange-700 border-orange-200' :
                   'bg-gray-100 text-gray-400 border-gray-200'
                 }`}>
                   {task.content_idea_approval || 'Pending'}
@@ -660,7 +933,7 @@ function TasksPageContent() {
               )}
               {colId === 'content_idea_feedback' && (
                 <div className="max-w-[150px]">
-                  {task.content_idea_approval === 'Required Changes' && task.content_idea_feedback ? (
+                  {(task.content_idea_approval === 'Required Changes' || task.content_idea_approval === 'Rejected') && task.content_idea_feedback ? (
                     <button type="button" className="w-full text-left cursor-pointer" onClick={() => setFeedbackModal(task.content_idea_feedback)}>
                       <span className="block text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 truncate hover:bg-red-100 transition-colors" title={task.content_idea_feedback}>
                         {task.content_idea_feedback}
@@ -681,7 +954,9 @@ function TasksPageContent() {
                     description: task.content_draft_sent
                       ? 'This will re-send the content draft to the client and reset their draft approval. Are you sure?'
                       : 'This will share the content draft link with the client for their approval. Are you sure?',
-                    onConfirm: () => sendSocialAction(task.id, 'send-draft')
+                    onConfirm: () => sendSocialAction(task.id, 'send-draft'),
+                    confirmText: 'Send',
+                    confirmClass: 'bg-blue-600 hover:bg-blue-700 text-white'
                   })}
                 >
                   {task.content_draft_sent ? 'Re-send Draft' : 'Send Draft'}
@@ -691,6 +966,7 @@ function TasksPageContent() {
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                   task.content_draft_approval === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' :
                   task.content_draft_approval === 'Required Changes' ? 'bg-red-100 text-red-700 border-red-200' :
+                  task.content_draft_approval === 'Rejected' ? 'bg-orange-100 text-orange-700 border-orange-200' :
                   'bg-gray-100 text-gray-400 border-gray-200'
                 }`}>
                   {task.content_draft_approval || 'Pending'}
@@ -698,7 +974,7 @@ function TasksPageContent() {
               )}
               {colId === 'draft_feedback' && (
                 <div className="max-w-[150px]">
-                  {task.content_draft_approval === 'Required Changes' && task.draft_feedback ? (
+                  {(task.content_draft_approval === 'Required Changes' || task.content_draft_approval === 'Rejected') && task.draft_feedback ? (
                     <button type="button" className="w-full text-left cursor-pointer" onClick={() => setFeedbackModal(task.draft_feedback)}>
                       <span className="block text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 truncate hover:bg-red-100 transition-colors" title={task.draft_feedback}>
                         {task.draft_feedback}
@@ -708,6 +984,15 @@ function TasksPageContent() {
                 </div>
               )}
               {colId === 'posting_date' && <EditableCell value={task.posting_date} type="date" onSave={v => updateTask(task.id, 'posting_date', v)} />}
+              {colId === 'social_internal_approval' && (
+                <EditableCell
+                  value={task.internal_approval}
+                  type="select"
+                  options={SOCIAL_INTERNAL_APPROVALS}
+                  onSave={v => updateTask(task.id, 'internal_approval', v)}
+                  placeholder="Internal Approval"
+                />
+              )}
               {/* ── End Social columns ─────────────────────────────────────── */}
               {colId === 'internal_approval' && (
                 <EditableCell
@@ -784,10 +1069,10 @@ function TasksPageContent() {
     live_link: 'Live Link', live_date: 'Live Date',
     client_approval: 'Client Approval', client_feedback: 'Client Feedback', comments: 'Comments', actions: '',
     // Social
-    format: 'Format', reference: 'Reference', visual_brief: 'Visual Brief', content: 'Content', caption: 'Caption',
+    format: 'Format', social_status: 'Status', reference: 'Reference', visual_brief: 'Visual Brief', content: 'Content', caption: 'Caption',
     send_idea: 'Send Idea', content_idea_approval: 'Idea Approval', content_idea_feedback: 'Idea Feedback',
     content_draft: 'Draft', send_draft: 'Send Draft', content_draft_approval: 'Draft Approval', draft_feedback: 'Draft Feedback',
-    posting_date: 'Posting Date',
+    posting_date: 'Posting Date', social_internal_approval: 'Internal Approval',
   }
   const columnSortFields = {
     client: 'client_name',
@@ -808,9 +1093,11 @@ function TasksPageContent() {
     comments: 'comments',
     // Social
     format: 'format',
+    social_status: 'status',
     posting_date: 'posting_date',
     content_idea_approval: 'content_idea_approval',
     content_draft_approval: 'content_draft_approval',
+    social_internal_approval: 'internal_approval',
   }
 
   return (
@@ -859,103 +1146,13 @@ function TasksPageContent() {
         onSelect={(id) => updateQueryParams({ client_id: id })}
       />
 
-      <div className="flex flex-wrap items-center gap-3 mb-4 p-4 bg-blue-50/50 border border-blue-100 rounded-lg shadow-sm">
-        <div className="flex-1 min-w-[200px]">
-          <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Plus className="w-3.5 h-3.5" /> Quick Add {serviceConfig.label.slice(0, -1)}
-          </h3>
-          <div className="flex gap-2 flex-wrap">
-            {/* Multi-client selector */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className={`h-9 px-3 text-xs rounded-md border bg-white flex items-center gap-1.5 min-w-[160px] transition-all ${
-                    newTask.client_ids.length > 0
-                      ? 'border-blue-400 text-blue-700 font-semibold'
-                      : 'border-blue-200 text-gray-400'
-                  }`}
-                >
-                  {newTask.client_ids.length === 0
-                    ? 'Select clients…'
-                    : newTask.client_ids.length === 1
-                      ? (clients.find(c => c?.id === newTask.client_ids[0])?.name || '1 client')
-                      : `${newTask.client_ids.length} clients selected`
-                  }
-                  <span className="ml-auto text-gray-400">▾</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64 max-h-72 overflow-y-auto">
-                <DropdownMenuLabel className="text-xs flex items-center justify-between">
-                  <span>Select Clients</span>
-                  {newTask.client_ids.length > 0 && (
-                    <button
-                      className="text-[10px] text-gray-400 hover:text-red-500 font-normal"
-                      onClick={() => setNewTask(n => ({ ...n, client_ids: [] }))}
-                    >
-                      Clear all
-                    </button>
-                  )}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {safeArray(clients).map(c => (
-                  <DropdownMenuCheckboxItem
-                    key={c?.id}
-                    checked={newTask.client_ids.includes(c?.id)}
-                    onCheckedChange={(checked) => {
-                      setNewTask(n => ({
-                        ...n,
-                        client_ids: checked
-                          ? [...n.client_ids, c?.id]
-                          : n.client_ids.filter(id => id !== c?.id)
-                      }))
-                    }}
-                    className="text-xs"
-                  >
-                    {c?.name}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Title input (non-social) or Format dropdown (social) */}
-            {service === 'social' ? (
-              <Select value={newTask.format || '__none__'} onValueChange={v => setNewTask(n => ({ ...n, format: v === '__none__' ? '' : v }))}>
-                <SelectTrigger className="h-9 text-xs w-44 border-blue-200 bg-white">
-                  <SelectValue placeholder="Format (optional)…" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__" className="text-xs text-gray-400">No format yet</SelectItem>
-                  {SOCIAL_FORMATS.map(f => <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="relative flex-1 min-w-[200px]">
-                <input
-                  type="text" value={newTask.title}
-                  onChange={e => setNewTask(n => ({ ...n, title: e.target.value }))}
-                  onKeyDown={e => e.key === 'Enter' && addTask()}
-                  placeholder={`Task title…`}
-                  className="w-full h-9 text-xs px-3 py-1 bg-white border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400 transition-all"
-                  disabled={addingTask}
-                />
-              </div>
-            )}
-
-            <Button
-              onClick={addTask}
-              disabled={addingTask || (service !== 'social' && !newTask.title.trim()) || newTask.client_ids.length === 0}
-              className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all"
-            >
-              {addingTask
-                ? 'Saving…'
-                : newTask.client_ids.length > 1
-                  ? `Add to ${newTask.client_ids.length} Clients`
-                  : 'Add Task'
-              }
-            </Button>
-          </div>
-        </div>
+      <div className="mb-4">
+        <Button
+          onClick={() => setShowAddModal(true)}
+          className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm"
+        >
+          <Plus className="w-3.5 h-3.5 mr-1.5" /> Add {serviceConfig.label.slice(0, -1)}
+        </Button>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4 p-3 bg-white border border-gray-200 rounded-lg">
@@ -1034,7 +1231,7 @@ function TasksPageContent() {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleColDragEnd} modifiers={[restrictToHorizontalAxis]}>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleRowDragEnd} modifiers={[restrictToVerticalAxis]}>
             <table className="w-full text-sm" style={{ minWidth: '1800px', tableLayout: 'fixed' }}>
-              <thead>
+              <thead className="sticky top-0 z-40">
                 <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
                   <tr className="border-b border-gray-200 bg-gray-50/80">
                     {columnOrder.map(colId => (
@@ -1065,6 +1262,7 @@ function TasksPageContent() {
           onPageChange={(p) => updateQueryParams({ page: p })}
         />
       </div>
+      <AddTaskModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} service={service} clients={clients} members={members} onAdd={addTask} isAdding={addingTask} />
       <ConfirmDialog config={confirmConfig} onClose={() => setConfirmConfig(null)} />
       {commentsModal && (
         <CommentsModal

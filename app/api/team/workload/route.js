@@ -61,13 +61,14 @@ export async function GET(request) {
             }
         ]
 
-        const [seoCounts, emailCounts, paidCounts] = await Promise.all([
+        const [seoCounts, emailCounts, paidCounts, socialCounts] = await Promise.all([
             database.collection('tasks').aggregate(aggregation).toArray(),
             database.collection('email_tasks').aggregate(aggregation).toArray(),
             database.collection('paid_tasks').aggregate(aggregation).toArray(),
+            database.collection('social_tasks').aggregate(aggregation).toArray(),
         ])
 
-        for (const row of [...safeArray(seoCounts), ...safeArray(emailCounts), ...safeArray(paidCounts)]) {
+        for (const row of [...safeArray(seoCounts), ...safeArray(emailCounts), ...safeArray(paidCounts), ...safeArray(socialCounts)]) {
             if (!byMember[row._id]) continue
             byMember[row._id].total_tasks += row.total || 0
             byMember[row._id].active_tasks += row.active || 0

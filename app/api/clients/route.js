@@ -71,7 +71,7 @@ export async function POST(request) {
 
         const client = {
             id: uuidv4(), name, slug: finalSlug,
-            service_type: service_type || 'SEO',
+            service_type: service_type || [],
             portal_password: hashedPortalPassword,
             email: email || null,
             // website_access_id defaults to email (Google Access ID) on creation — users can change it later

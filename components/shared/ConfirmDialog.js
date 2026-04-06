@@ -19,7 +19,7 @@ import {
  *   // When you want to ask: setConfirm({ title, description, onConfirm })
  *   <ConfirmDialog config={confirm} onClose={() => setConfirm(null)} />
  *
- * @param {object} config   - { title, description, onConfirm }
+ * @param {object} config   - { title, description, onConfirm, confirmText?, confirmClass? }
  * @param {function} onClose - called when the dialog should be dismissed
  */
 export function ConfirmDialog({ config, onClose }) {
@@ -36,10 +36,10 @@ export function ConfirmDialog({ config, onClose }) {
                 <AlertDialogFooter>
                     <AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
                     <AlertDialogAction
-                        className="bg-red-600 hover:bg-red-700 text-white"
+                        className={config.confirmClass || "bg-red-600 hover:bg-red-700 text-white"}
                         onClick={() => { config.onConfirm(); onClose() }}
                     >
-                        Delete
+                        {config.confirmText || 'Delete'}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

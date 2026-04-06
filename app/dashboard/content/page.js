@@ -15,6 +15,7 @@ import { safeJSON, safeArray } from '@/lib/safe'
 import { Pagination } from '@/components/shared/Pagination'
 import { ClientSwitcher } from '@/components/shared/ClientSwitcher'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   DndContext,
   closestCenter,
@@ -38,6 +39,140 @@ import {
   OUTLINE_STATUSES, TOPIC_APPROVALS, BLOG_APPROVALS, BLOG_STATUSES, CONTENT_INTERNAL_APPROVALS,
   INTERN_STATUSES, topicApprovalColors, blogStatusColors, approvalColors, internStatusColors, CONTENT_COLUMN_WIDTHS
 } from '@/lib/constants'
+
+function AddContentModal({ isOpen, onClose, clients, onAdd, isAdding }) {
+  const mkEmpty = () => ({
+    client_id: '',
+    blog_title: '',
+    week: '',
+    primary_keyword: '',
+    secondary_keywords: '',
+    writer: '',
+    required_by: '',
+    search_volume: '',
+    blog_status: '',
+    intern_status: '',
+    outline_link: '',
+    blog_doc_link: '',
+  })
+  const [form, setForm] = useState(mkEmpty)
+  useEffect(() => { if (isOpen) setForm(mkEmpty()) }, [isOpen])
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const canAdd = form.client_id && form.blog_title.trim()
+
+  return (
+    <Dialog open={isOpen} onOpenChange={o => { if (!o) onClose() }}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add Content Item</DialogTitle>
+          <DialogDescription className="text-xs">Fill in the details below. Fields marked * are required.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 pt-1">
+          {/* Client */}
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Client <span className="text-red-500">*</span></label>
+            <Select value={form.client_id || '__none__'} onValueChange={v => set('client_id', v === '__none__' ? '' : v)}>
+              <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Select client…" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__" className="text-xs text-gray-400">Select client…</SelectItem>
+                {safeArray(clients).map(c => <SelectItem key={c?.id} value={c?.id} className="text-xs">{c?.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Blog Title */}
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Blog Title <span className="text-red-500">*</span></label>
+            <Input value={form.blog_title} onChange={e => set('blog_title', e.target.value)} placeholder="Topic / Blog Title…" className="h-9 text-xs border-gray-200" autoFocus />
+          </div>
+
+          {/* Week + Required By */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Week</label>
+              <Input value={form.week || ''} onChange={e => set('week', e.target.value || null)} placeholder="e.g. W1, Week 1…" className="h-9 text-xs border-gray-200" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Required By</label>
+              <Input type="date" value={form.required_by || ''} onChange={e => set('required_by', e.target.value || null)} className="h-9 text-xs border-gray-200" />
+            </div>
+          </div>
+
+          {/* Primary Keyword + Search Volume */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Primary Keyword</label>
+              <Input value={form.primary_keyword || ''} onChange={e => set('primary_keyword', e.target.value || null)} placeholder="Target keyword…" className="h-9 text-xs border-gray-200" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Search Volume</label>
+              <Input type="number" value={form.search_volume || ''} onChange={e => set('search_volume', e.target.value || null)} placeholder="e.g. 1200" className="h-9 text-xs border-gray-200" />
+            </div>
+          </div>
+
+          {/* Secondary Keywords */}
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Secondary Keywords</label>
+            <Input value={form.secondary_keywords || ''} onChange={e => set('secondary_keywords', e.target.value || null)} placeholder="Comma-separated secondary keywords…" className="h-9 text-xs border-gray-200" />
+          </div>
+
+          {/* Writer + Intern Status */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Writer</label>
+              <Input value={form.writer || ''} onChange={e => set('writer', e.target.value || null)} placeholder="Writer name…" className="h-9 text-xs border-gray-200" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Intern Status</label>
+              <Select value={form.intern_status || '__none__'} onValueChange={v => set('intern_status', v === '__none__' ? '' : v)}>
+                <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Status…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" className="text-xs text-gray-400">None</SelectItem>
+                  {INTERN_STATUSES.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Blog Status */}
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Blog Status</label>
+            <Select value={form.blog_status || '__none__'} onValueChange={v => set('blog_status', v === '__none__' ? '' : v)}>
+              <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Status…" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__" className="text-xs text-gray-400">Default (Draft)</SelectItem>
+                {BLOG_STATUSES.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Outline Link + Blog Doc Link */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Outline Link</label>
+              <Input value={form.outline_link || ''} onChange={e => set('outline_link', e.target.value || null)} placeholder="https://…" className="h-9 text-xs border-gray-200" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Blog Doc Link</label>
+              <Input value={form.blog_doc_link || ''} onChange={e => set('blog_doc_link', e.target.value || null)} placeholder="https://…" className="h-9 text-xs border-gray-200" />
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="pt-4">
+          <Button variant="outline" onClick={onClose} className="text-xs">Cancel</Button>
+          <Button
+            onClick={() => onAdd(form)}
+            disabled={!canAdd || isAdding}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
+          >
+            {isAdding ? 'Adding…' : 'Add Content'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 const COL_ORDER_KEY = 'content_column_order_v4'
 const DEFAULT_COL_ORDER = [
@@ -93,6 +228,7 @@ function ContentCalendarContent() {
   const [newContent, setNewContent] = useState({ blog_title: '', client_id: '' })
   const [addingContent, setAddingContent] = useState(false)
   const [confirmConfig, setConfirmConfig] = useState(null)
+  const [showAddModal, setShowAddModal] = useState(false)
 
   const updateQueryParams = (updates) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -153,16 +289,28 @@ function ContentCalendarContent() {
     setSaving(s => ({ ...s, [contentId]: false }))
   }
 
-  const addContent = async () => {
-    if (!newContent.blog_title.trim() || !newContent.client_id) return
+  const addContent = async (formData) => {
+    if (!formData.blog_title.trim() || !formData.client_id) return
     setAddingContent(true)
     try {
+      const body = { blog_title: formData.blog_title.trim(), client_id: formData.client_id }
+      if (formData.week?.trim()) body.week = formData.week.trim()
+      if (formData.primary_keyword?.trim()) body.primary_keyword = formData.primary_keyword.trim()
+      if (formData.secondary_keywords?.trim()) body.secondary_keywords = formData.secondary_keywords.trim()
+      if (formData.writer?.trim()) body.writer = formData.writer.trim()
+      if (formData.required_by) body.required_by = formData.required_by
+      if (formData.search_volume) body.search_volume = parseInt(formData.search_volume, 10) || null
+      if (formData.blog_status) body.blog_status = formData.blog_status
+      if (formData.intern_status) body.intern_status = formData.intern_status
+      if (formData.outline_link?.trim()) body.outline_link = formData.outline_link.trim()
+      if (formData.blog_doc_link?.trim()) body.blog_doc_link = formData.blog_doc_link.trim()
+
       const res = await apiFetch('/api/content', {
         method: 'POST',
-        body: JSON.stringify(newContent)
+        body: JSON.stringify(body)
       })
       if (res.ok) {
-        setNewContent({ blog_title: '', client_id: '' })
+        setShowAddModal(false)
         mutateContent()
       } else {
         const error = await res.json()
@@ -518,43 +666,13 @@ function ContentCalendarContent() {
         onSelect={(id) => updateQueryParams({ client_id: id })}
       />
 
-      <div className="flex flex-wrap items-center gap-3 mb-4 p-4 bg-blue-50/50 border border-blue-100 rounded-lg shadow-sm">
-        <div className="flex-1 min-w-[200px]">
-          <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Plus className="w-3.5 h-3.5" /> Quick Add Content
-          </h3>
-          <div className="flex gap-2">
-            <Select
-              value={newContent.client_id || '__none__'}
-              onValueChange={v => setNewContent(n => ({ ...n, client_id: v === '__none__' ? '' : v }))}
-            >
-              <SelectTrigger className="h-9 text-xs w-48 bg-white border-blue-200">
-                <SelectValue placeholder="Target Client..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__" className="text-xs text-gray-400">Select client…</SelectItem>
-                {safeArray(clients).map(c => <SelectItem key={c?.id} value={c?.id} className="text-xs">{c?.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <div className="relative flex-1">
-              <input
-                type="text" value={newContent.blog_title}
-                onChange={e => setNewContent(n => ({ ...n, blog_title: e.target.value }))}
-                onKeyDown={e => e.key === 'Enter' && addContent()}
-                placeholder="Topic / Blog Title..."
-                className="w-full h-9 text-xs px-3 py-1 bg-white border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400 transition-all font-medium"
-                disabled={addingContent}
-              />
-            </div>
-            <Button
-              onClick={addContent}
-              disabled={addingContent || !newContent.blog_title.trim() || !newContent.client_id || newContent.client_id === '__none__'}
-              className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all"
-            >
-              {addingContent ? 'Saving...' : 'Add Content'}
-            </Button>
-          </div>
-        </div>
+      <div className="mb-4">
+        <Button
+          onClick={() => setShowAddModal(true)}
+          className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm"
+        >
+          <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Content
+        </Button>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4 p-3 bg-white border border-gray-200 rounded-lg items-center">
@@ -680,6 +798,13 @@ function ContentCalendarContent() {
         />
       </div>
       <ConfirmDialog config={confirmConfig} onClose={() => setConfirmConfig(null)} />
+      <AddContentModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        clients={clients}
+        onAdd={addContent}
+        isAdding={addingContent}
+      />
     </div>
   )
 }

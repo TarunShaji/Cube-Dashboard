@@ -39,8 +39,9 @@ import { CSS } from '@dnd-kit/utilities'
 import { restrictToHorizontalAxis, restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import {
   STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, CONTENT_INTERNAL_APPROVALS, REPORT_TYPES, SERVICE_TYPES,
+  SOCIAL_STATUSES, SOCIAL_INTERNAL_APPROVALS,
   OUTLINE_STATUSES, TOPIC_APPROVALS, BLOG_APPROVALS, BLOG_STATUSES, INTERN_STATUSES,
-  statusColors, priorityColors, approvalColors, topicApprovalColors, blogStatusColors, internalApprovalColors, internStatusColors,
+  statusColors, priorityColors, approvalColors, topicApprovalColors, blogStatusColors, internalApprovalColors, internStatusColors, socialInternalApprovalColors,
   TASK_COLUMN_WIDTHS, CONTENT_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS, SOCIAL_COLUMN_WIDTHS, SOCIAL_FORMATS, STATUS_ORDER
 } from '@/lib/constants'
 
@@ -152,6 +153,306 @@ function AssigneeCell({ task, members, memberMap, onSave }) {
   )
 }
 
+function AssignedMemberSelect({ value, members, onSave }) {
+  const ids = value ? (Array.isArray(value) ? value : [value]) : []
+  const names = ids.map(id => safeArray(members).find(m => m?.id === id)?.name).filter(Boolean)
+  const label = names.length ? names.join(', ') : 'Unassigned'
+
+  const setForMember = (memberId, checked) => {
+    const nextSet = new Set(ids)
+    if (checked) nextSet.add(memberId)
+    else nextSet.delete(memberId)
+    const next = [...nextSet]
+    if (next.length === 0) onSave(null)
+    else if (next.length === 1) onSave(next[0])
+    else onSave(next)
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className={`h-9 w-full px-3 text-xs rounded-md border bg-white flex items-center gap-1.5 ${ids.length > 0 ? 'border-blue-400 text-blue-700 font-semibold' : 'border-gray-200 text-gray-400'}`}>
+          <span className="truncate flex-1 text-left">{label}</span>
+          <span className="text-gray-400 flex-shrink-0">▾</span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-64 max-h-72 overflow-y-auto">
+        <DropdownMenuLabel className="text-xs">Assign Members</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuCheckboxItem checked={ids.length === 0} onCheckedChange={(checked) => { if (checked) onSave(null) }} className="text-xs">Unassigned</DropdownMenuCheckboxItem>
+        <DropdownMenuSeparator />
+        {safeArray(members).map((m) => (
+          <DropdownMenuCheckboxItem key={m?.id} checked={ids.includes(m?.id)} onCheckedChange={(checked) => setForMember(m?.id, checked)} className="text-xs">{m?.name}</DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function AddClientTaskModal({ isOpen, onClose, service, members, onAdd, isAdding }) {
+  const isSocial = service === 'social'
+  const statusOpts = service === 'social' ? SOCIAL_STATUSES : STATUSES
+  const lbl = { seo: 'SEO', email: 'Email', paid: 'Paid Ads', social: 'Social Media' }[service] || service
+
+  const mkEmpty = () => ({
+    title: '', format: '', category: '', status: '', priority: '', eta_end: '',
+    assigned_to: null, comments: '', link_url: '',
+    reference_link: '', visual_brief: '', content: '', caption: '',
+    posting_date: '', internal_approval: '',
+    campaign_live_date: '', live_data: '',
+  })
+  const [form, setForm] = useState(mkEmpty)
+  useEffect(() => { if (isOpen) setForm(mkEmpty()) }, [isOpen])
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const canAdd = isSocial || form.title.trim()
+
+  return (
+    <Dialog open={isOpen} onOpenChange={o => { if (!o) onClose() }}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add {lbl} Task</DialogTitle>
+          <DialogDescription className="text-xs">Fill in the details below. Fields marked * are required.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 pt-1">
+
+          {isSocial ? (
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Format</label>
+              <Select value={form.format || '__none__'} onValueChange={v => set('format', v === '__none__' ? '' : v)}>
+                <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Select format…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" className="text-xs text-gray-400">No format</SelectItem>
+                  {SOCIAL_FORMATS.map(f => <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Title <span className="text-red-500">*</span></label>
+              <Input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Task title…" className="h-9 text-xs border-gray-200" autoFocus />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Status</label>
+              <Select value={form.status || '__none__'} onValueChange={v => set('status', v === '__none__' ? '' : v)}>
+                <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Status…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" className="text-xs text-gray-400">No status</SelectItem>
+                  {statusOpts.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {service === 'seo' && (
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Priority</label>
+                <Select value={form.priority || '__none__'} onValueChange={v => set('priority', v === '__none__' ? '' : v)}>
+                  <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Priority…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs text-gray-400">No priority</SelectItem>
+                    {PRIORITIES.map(p => <SelectItem key={p} value={p} className="text-xs">{p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {isSocial && (
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Internal Approval</label>
+                <Select value={form.internal_approval || '__none__'} onValueChange={v => set('internal_approval', v === '__none__' ? '' : v)}>
+                  <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Approval…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs text-gray-400">Not set</SelectItem>
+                    {SOCIAL_INTERNAL_APPROVALS.map(a => <SelectItem key={a} value={a} className="text-xs">{a}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          {service === 'seo' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Category</label>
+                <Select value={form.category || '__none__'} onValueChange={v => set('category', v === '__none__' ? '' : v)}>
+                  <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Category…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs text-gray-400">No category</SelectItem>
+                    {CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">ETA</label>
+                <Input type="date" value={form.eta_end || ''} onChange={e => set('eta_end', e.target.value || null)} className="h-9 text-xs border-gray-200" />
+              </div>
+            </div>
+          )}
+
+          {isSocial && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">Reference Link</label>
+                  <Input value={form.reference_link || ''} onChange={e => set('reference_link', e.target.value || null)} placeholder="https://…" className="h-9 text-xs border-gray-200" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1.5">Posting Date</label>
+                  <Input type="date" value={form.posting_date || ''} onChange={e => set('posting_date', e.target.value || null)} className="h-9 text-xs border-gray-200" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Visual Brief</label>
+                <textarea value={form.visual_brief || ''} onChange={e => set('visual_brief', e.target.value || null)} rows={2} placeholder="Describe the visual…" className="w-full border border-gray-200 rounded-md px-3 py-2 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Content</label>
+                <textarea value={form.content || ''} onChange={e => set('content', e.target.value || null)} rows={3} placeholder="Content / copy…" className="w-full border border-gray-200 rounded-md px-3 py-2 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Caption</label>
+                <textarea value={form.caption || ''} onChange={e => set('caption', e.target.value || null)} rows={2} placeholder="Social caption…" className="w-full border border-gray-200 rounded-md px-3 py-2 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y" />
+              </div>
+            </>
+          )}
+
+          {!isSocial && (
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Link URL</label>
+              <Input value={form.link_url || ''} onChange={e => set('link_url', e.target.value || null)} placeholder="https://…" className="h-9 text-xs border-gray-200" />
+            </div>
+          )}
+
+          {service === 'email' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Campaign Live Date</label>
+                <Input type="date" value={form.campaign_live_date || ''} onChange={e => set('campaign_live_date', e.target.value || null)} className="h-9 text-xs border-gray-200" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">Live Data Date</label>
+                <Input type="date" value={form.live_data || ''} onChange={e => set('live_data', e.target.value || null)} className="h-9 text-xs border-gray-200" />
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Assigned To</label>
+            <AssignedMemberSelect value={form.assigned_to} members={members} onSave={v => set('assigned_to', v)} />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Comments</label>
+            <textarea value={form.comments || ''} onChange={e => set('comments', e.target.value || null)} rows={3} placeholder="Notes or comments…" className="w-full border border-gray-200 rounded-md px-3 py-2 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y" />
+          </div>
+        </div>
+
+        <DialogFooter className="pt-4">
+          <Button variant="outline" onClick={onClose} className="text-xs">Cancel</Button>
+          <Button onClick={() => onAdd(form)} disabled={!canAdd || isAdding} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">
+            {isAdding ? 'Adding…' : 'Add Task'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function AddClientContentModal({ isOpen, onClose, members, onAdd, isAdding }) {
+  const mkEmpty = () => ({
+    blog_title: '', week: '', primary_keyword: '', secondary_keywords: '',
+    writer: '', required_by: '', search_volume: '', blog_status: '',
+    intern_status: '', outline_link: '', blog_doc_link: '',
+  })
+  const [form, setForm] = useState(mkEmpty)
+  useEffect(() => { if (isOpen) setForm(mkEmpty()) }, [isOpen])
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const canAdd = form.blog_title.trim()
+
+  return (
+    <Dialog open={isOpen} onOpenChange={o => { if (!o) onClose() }}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add Content Item</DialogTitle>
+          <DialogDescription className="text-xs">Fill in the details below. Fields marked * are required.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 pt-1">
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Blog Title <span className="text-red-500">*</span></label>
+            <Input value={form.blog_title} onChange={e => set('blog_title', e.target.value)} placeholder="Topic / Blog Title…" className="h-9 text-xs border-gray-200" autoFocus />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Week</label>
+              <Input value={form.week || ''} onChange={e => set('week', e.target.value || null)} placeholder="e.g. W1, Week 1…" className="h-9 text-xs border-gray-200" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Required By</label>
+              <Input type="date" value={form.required_by || ''} onChange={e => set('required_by', e.target.value || null)} className="h-9 text-xs border-gray-200" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Primary Keyword</label>
+              <Input value={form.primary_keyword || ''} onChange={e => set('primary_keyword', e.target.value || null)} placeholder="Target keyword…" className="h-9 text-xs border-gray-200" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Search Volume</label>
+              <Input type="number" value={form.search_volume || ''} onChange={e => set('search_volume', e.target.value || null)} placeholder="e.g. 1200" className="h-9 text-xs border-gray-200" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Secondary Keywords</label>
+            <Input value={form.secondary_keywords || ''} onChange={e => set('secondary_keywords', e.target.value || null)} placeholder="Comma-separated…" className="h-9 text-xs border-gray-200" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Writer</label>
+              <Input value={form.writer || ''} onChange={e => set('writer', e.target.value || null)} placeholder="Writer name…" className="h-9 text-xs border-gray-200" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Intern Status</label>
+              <Select value={form.intern_status || '__none__'} onValueChange={v => set('intern_status', v === '__none__' ? '' : v)}>
+                <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Status…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__" className="text-xs text-gray-400">None</SelectItem>
+                  {INTERN_STATUSES.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Blog Status</label>
+            <Select value={form.blog_status || '__none__'} onValueChange={v => set('blog_status', v === '__none__' ? '' : v)}>
+              <SelectTrigger className="h-9 text-xs border-gray-200"><SelectValue placeholder="Status…" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__" className="text-xs text-gray-400">Default (Draft)</SelectItem>
+                {BLOG_STATUSES.map(s => <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Outline Link</label>
+              <Input value={form.outline_link || ''} onChange={e => set('outline_link', e.target.value || null)} placeholder="https://…" className="h-9 text-xs border-gray-200" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1.5">Blog Doc Link</label>
+              <Input value={form.blog_doc_link || ''} onChange={e => set('blog_doc_link', e.target.value || null)} placeholder="https://…" className="h-9 text-xs border-gray-200" />
+            </div>
+          </div>
+        </div>
+        <DialogFooter className="pt-4">
+          <Button variant="outline" onClick={onClose} className="text-xs">Cancel</Button>
+          <Button onClick={() => onAdd(form)} disabled={!canAdd || isAdding} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">
+            {isAdding ? 'Adding…' : 'Add Content'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 function ClientDetailPageContent() {
   const { id } = useParams()
@@ -189,7 +490,7 @@ function ClientDetailPageContent() {
         return {
           endpoint: '/api/social-tasks',
           label: 'Social Media Tasks',
-          columns: ['selection', 'format', 'reference', 'visual_brief', 'content', 'caption', 'send_idea', 'content_idea_approval', 'content_idea_feedback', 'content_draft', 'send_draft', 'content_draft_approval', 'draft_feedback', 'live_link', 'posting_date', 'assigned', 'comments', 'actions'],
+          columns: ['selection', 'format', 'reference', 'visual_brief', 'content', 'caption', 'social_internal_approval', 'send_idea', 'content_idea_approval', 'content_idea_feedback', 'content_draft', 'send_draft', 'content_draft_approval', 'draft_feedback', 'live_link', 'posting_date', 'social_status', 'assigned', 'comments', 'actions'],
           widths: SOCIAL_COLUMN_WIDTHS
         }
       default:
@@ -287,6 +588,8 @@ function ClientDetailPageContent() {
   const [newContent, setNewContent] = useState({ blog_title: '' })
   const [addingTask, setAddingTask] = useState(false)
   const [addingContent, setAddingContent] = useState(false)
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false)
+  const [showAddContentModal, setShowAddContentModal] = useState(false)
   const [showAddReport, setShowAddReport] = useState(false)
   const [reportForm, setReportForm] = useState({ title: '', report_type: 'Monthly SEO Report', report_url: '', report_date: '', notes: '' })
   const [showSettings, setShowSettings] = useState(false)
@@ -377,7 +680,6 @@ function ClientDetailPageContent() {
       console.error('Update failed', e)
     }
 
-    mutateTasks()
     setSaving(s => ({ ...s, [taskId]: false }))
   }
 
@@ -454,16 +756,42 @@ function ClientDetailPageContent() {
     setSaving(s => ({ ...s, [`c_${contentId}`]: false }))
   }
 
-  const addTask = async () => {
+  const addTask = async (formData) => {
     const isSocial = tService === 'social'
-    if (!isSocial && !newTask.title.trim()) return
+    if (!isSocial && !formData.title?.trim()) return
     setAddingTask(true)
-    const taskBody = isSocial
-      ? { client_id: id, ...(newTask.format ? { format: newTask.format } : {}) }
-      : { title: newTask.title.trim(), client_id: id }
+    const pick = v => (v != null && v !== '') ? v : undefined
+    let taskBody = { client_id: id }
+    if (isSocial) {
+      if (pick(formData.format)) taskBody.format = formData.format
+      if (pick(formData.status)) taskBody.status = formData.status
+      if (pick(formData.reference_link)) taskBody.reference_link = formData.reference_link
+      if (pick(formData.visual_brief)) taskBody.visual_brief = formData.visual_brief
+      if (pick(formData.content)) taskBody.content = formData.content
+      if (pick(formData.caption)) taskBody.caption = formData.caption
+      if (pick(formData.posting_date)) taskBody.posting_date = formData.posting_date
+      if (pick(formData.internal_approval)) taskBody.internal_approval = formData.internal_approval
+      if (formData.assigned_to != null) taskBody.assigned_to = formData.assigned_to
+      if (pick(formData.comments)) taskBody.comments = formData.comments
+    } else {
+      taskBody.title = formData.title.trim()
+      if (pick(formData.status)) taskBody.status = formData.status
+      if (formData.assigned_to != null) taskBody.assigned_to = formData.assigned_to
+      if (pick(formData.link_url)) taskBody.link_url = formData.link_url
+      if (pick(formData.comments)) taskBody.comments = formData.comments
+      if (tService === 'seo') {
+        if (pick(formData.category)) taskBody.category = formData.category
+        if (pick(formData.priority)) taskBody.priority = formData.priority
+        if (pick(formData.eta_end)) taskBody.eta_end = formData.eta_end
+      }
+      if (tService === 'email') {
+        if (pick(formData.campaign_live_date)) taskBody.campaign_live_date = formData.campaign_live_date
+        if (pick(formData.live_data)) taskBody.live_data = formData.live_data
+      }
+    }
     const res = await apiFetch(serviceConfig.endpoint, { method: 'POST', body: JSON.stringify(taskBody) })
     if (res.ok) {
-      setNewTask({ title: '', format: '' })
+      setShowAddTaskModal(false)
       mutateTasks()
     }
     setAddingTask(false)
@@ -657,13 +985,24 @@ function ClientDetailPageContent() {
     setSaving(s => ({ ...s, [`c_${contentId}`]: false }))
   }
 
-  const addContent = async () => {
-    if (!newContent.blog_title.trim()) return
+  const addContent = async (formData) => {
+    if (!formData.blog_title?.trim()) return
     setAddingContent(true)
-    const res = await apiFetch('/api/content', { method: 'POST', body: JSON.stringify({ ...newContent, client_id: id }) })
+    const body = { blog_title: formData.blog_title.trim(), client_id: id }
+    if (formData.week?.trim()) body.week = formData.week.trim()
+    if (formData.primary_keyword?.trim()) body.primary_keyword = formData.primary_keyword.trim()
+    if (formData.secondary_keywords?.trim()) body.secondary_keywords = formData.secondary_keywords.trim()
+    if (formData.writer?.trim()) body.writer = formData.writer.trim()
+    if (formData.required_by) body.required_by = formData.required_by
+    if (formData.search_volume) body.search_volume = parseInt(formData.search_volume, 10) || null
+    if (formData.blog_status) body.blog_status = formData.blog_status
+    if (formData.intern_status) body.intern_status = formData.intern_status
+    if (formData.outline_link?.trim()) body.outline_link = formData.outline_link.trim()
+    if (formData.blog_doc_link?.trim()) body.blog_doc_link = formData.blog_doc_link.trim()
+    const res = await apiFetch('/api/content', { method: 'POST', body: JSON.stringify(body) })
     if (res.ok) {
+      setShowAddContentModal(false)
       mutateContent()
-      setNewContent({ blog_title: '' })
     }
     setAddingContent(false)
   }
@@ -1048,6 +1387,9 @@ function ClientDetailPageContent() {
               {colId === 'format' && (
                 <EditableCell value={task.format} type="select" options={SOCIAL_FORMATS} onSave={v => updateTask(task.id, 'format', v)} />
               )}
+              {colId === 'social_status' && (
+                <EditableCell value={task.status} type="status" options={SOCIAL_STATUSES} onSave={v => updateTask(task.id, 'status', v)} />
+              )}
               {colId === 'reference' && <EditableCell type="expandable" value={task.reference_link} placeholder="Reference" onSave={v => updateTask(task.id, 'reference_link', v)} />}
               {colId === 'visual_brief' && <EditableCell type="expandable" value={task.visual_brief} placeholder="Visual Brief" onSave={v => updateTask(task.id, 'visual_brief', v)} />}
               {colId === 'content' && <EditableCell type="expandable" value={task.content} placeholder="Content" onSave={v => updateTask(task.id, 'content', v)} />}
@@ -1063,7 +1405,9 @@ function ClientDetailPageContent() {
                     description: task.content_idea_sent
                       ? 'This will re-send the content idea to the client and reset their approval. Are you sure?'
                       : 'This will share the format, visual brief, content, and caption with the client for their approval. Are you sure?',
-                    onConfirm: () => sendSocialAction(task.id, 'send-idea')
+                    onConfirm: () => sendSocialAction(task.id, 'send-idea'),
+                    confirmText: 'Send',
+                    confirmClass: 'bg-blue-600 hover:bg-blue-700 text-white'
                   })}
                 >
                   {task.content_idea_sent ? 'Re-send Idea' : 'Send Idea'}
@@ -1073,6 +1417,7 @@ function ClientDetailPageContent() {
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                   task.content_idea_approval === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' :
                   task.content_idea_approval === 'Required Changes' ? 'bg-red-100 text-red-700 border-red-200' :
+                  task.content_idea_approval === 'Rejected' ? 'bg-orange-100 text-orange-700 border-orange-200' :
                   'bg-gray-100 text-gray-400 border-gray-200'
                 }`}>
                   {task.content_idea_approval || 'Pending'}
@@ -1080,7 +1425,7 @@ function ClientDetailPageContent() {
               )}
               {colId === 'content_idea_feedback' && (
                 <div className="max-w-[150px]">
-                  {task.content_idea_approval === 'Required Changes' && task.content_idea_feedback ? (
+                  {(task.content_idea_approval === 'Required Changes' || task.content_idea_approval === 'Rejected') && task.content_idea_feedback ? (
                     <button type="button" className="w-full text-left cursor-pointer" onClick={() => setFeedbackModal(task.content_idea_feedback)}>
                       <span className="block text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 truncate hover:bg-red-100 transition-colors" title={task.content_idea_feedback}>
                         {task.content_idea_feedback}
@@ -1101,7 +1446,9 @@ function ClientDetailPageContent() {
                     description: task.content_draft_sent
                       ? 'This will re-send the content draft to the client and reset their draft approval. Are you sure?'
                       : 'This will share the content draft link with the client for their approval. Are you sure?',
-                    onConfirm: () => sendSocialAction(task.id, 'send-draft')
+                    onConfirm: () => sendSocialAction(task.id, 'send-draft'),
+                    confirmText: 'Send',
+                    confirmClass: 'bg-blue-600 hover:bg-blue-700 text-white'
                   })}
                 >
                   {task.content_draft_sent ? 'Re-send Draft' : 'Send Draft'}
@@ -1111,6 +1458,7 @@ function ClientDetailPageContent() {
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                   task.content_draft_approval === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' :
                   task.content_draft_approval === 'Required Changes' ? 'bg-red-100 text-red-700 border-red-200' :
+                  task.content_draft_approval === 'Rejected' ? 'bg-orange-100 text-orange-700 border-orange-200' :
                   'bg-gray-100 text-gray-400 border-gray-200'
                 }`}>
                   {task.content_draft_approval || 'Pending'}
@@ -1118,7 +1466,7 @@ function ClientDetailPageContent() {
               )}
               {colId === 'draft_feedback' && (
                 <div className="max-w-[150px]">
-                  {task.content_draft_approval === 'Required Changes' && task.draft_feedback ? (
+                  {(task.content_draft_approval === 'Required Changes' || task.content_draft_approval === 'Rejected') && task.draft_feedback ? (
                     <button type="button" className="w-full text-left cursor-pointer" onClick={() => setFeedbackModal(task.draft_feedback)}>
                       <span className="block text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100 truncate hover:bg-red-100 transition-colors" title={task.draft_feedback}>
                         {task.draft_feedback}
@@ -1128,6 +1476,15 @@ function ClientDetailPageContent() {
                 </div>
               )}
               {colId === 'posting_date' && <EditableCell value={task.posting_date} type="date" onSave={v => updateTask(task.id, 'posting_date', v)} />}
+              {colId === 'social_internal_approval' && (
+                <EditableCell
+                  value={task.internal_approval}
+                  type="select"
+                  options={SOCIAL_INTERNAL_APPROVALS}
+                  onSave={v => updateTask(task.id, 'internal_approval', v)}
+                  placeholder="Internal Approval"
+                />
+              )}
               {/* ── End Social columns ──────────────────────────────────── */}
               {
                 colId === 'internal_approval' && (
@@ -1344,10 +1701,10 @@ function ClientDetailPageContent() {
     live_link: 'Live Link', live_date: 'Live Date',
     send_link: 'Send Link', client_approval: 'Client Approval', client_feedback: 'Feedback', comments: 'Comments', actions: '',
     // Social
-    format: 'Format', reference: 'Reference', visual_brief: 'Visual Brief', content: 'Content', caption: 'Caption',
+    format: 'Format', social_status: 'Status', reference: 'Reference', visual_brief: 'Visual Brief', content: 'Content', caption: 'Caption',
     send_idea: 'Send Idea', content_idea_approval: 'Idea Approval', content_idea_feedback: 'Idea Feedback',
     content_draft: 'Draft', send_draft: 'Send Draft', content_draft_approval: 'Draft Approval', draft_feedback: 'Draft Feedback',
-    posting_date: 'Posting Date',
+    posting_date: 'Posting Date', social_internal_approval: 'Internal Approval',
   }
   const taskSortFields = {
     title: 'title',
@@ -1364,7 +1721,14 @@ function ClientDetailPageContent() {
     live_data: 'live_data',
     client_approval: 'client_approval',
     client_feedback: 'client_feedback_note',
-    comments: 'comments'
+    comments: 'comments',
+    // Social
+    format: 'format',
+    social_status: 'status',
+    posting_date: 'posting_date',
+    content_idea_approval: 'content_idea_approval',
+    content_draft_approval: 'content_draft_approval',
+    social_internal_approval: 'internal_approval',
   }
 
   const contentColLabels = {
@@ -1415,7 +1779,9 @@ function ClientDetailPageContent() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900">{client?.name}</h1>
           <div className="flex items-center gap-3 mt-1">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">{client?.service_type}</span>
+            {(Array.isArray(client?.service_type) ? client.service_type : (client?.service_type ? [client.service_type] : [])).map(s => (
+              <span key={s} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">{s}</span>
+            ))}
             <a href={`${BASE_URL}/portal/${client?.slug}`} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800">
               Portal Link <ExternalLink className="w-3 h-3" />
@@ -1491,43 +1857,13 @@ function ClientDetailPageContent() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 mb-4 p-4 bg-blue-50/50 border border-blue-100 rounded-lg shadow-sm">
-            <div className="flex-1 min-w-[200px]">
-              <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Plus className="w-3.5 h-3.5" /> Quick Add {serviceConfig.label.slice(0, -1)}
-              </h3>
-              <div className="flex gap-2">
-                {tService === 'social' ? (
-                  <Select value={newTask.format || '__none__'} onValueChange={v => setNewTask(n => ({ ...n, format: v === '__none__' ? '' : v }))}>
-                    <SelectTrigger className="h-9 text-xs w-44 border-blue-200 bg-white">
-                      <SelectValue placeholder="Format (optional)…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__" className="text-xs text-gray-400">No format yet</SelectItem>
-                      {SOCIAL_FORMATS.map(f => <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="relative flex-1">
-                    <input
-                      type="text" value={newTask.title}
-                      onChange={e => setNewTask(n => ({ ...n, title: e.target.value }))}
-                      onKeyDown={e => e.key === 'Enter' && addTask()}
-                      placeholder={`What ${serviceConfig.label.toLowerCase()} needs to be done for this client?`}
-                      className="w-full h-9 text-xs px-3 py-1 bg-white border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400 transition-all"
-                      disabled={addingTask}
-                    />
-                  </div>
-                )}
-                <Button
-                  onClick={addTask}
-                  disabled={addingTask || (tService !== 'social' && !newTask.title.trim())}
-                  className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all"
-                >
-                  {addingTask ? 'Saving...' : 'Add Task'}
-                </Button>
-              </div>
-            </div>
+          <div className="mb-4">
+            <Button
+              onClick={() => setShowAddTaskModal(true)}
+              className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" /> Add {serviceConfig.label.slice(0, -1)}
+            </Button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-white border border-gray-200 rounded-lg">
@@ -1622,9 +1958,9 @@ function ClientDetailPageContent() {
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleTaskColDragEnd} modifiers={[restrictToHorizontalAxis]}>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleTaskRowDragEnd} modifiers={[restrictToVerticalAxis]}>
                 <table className="w-full text-sm" style={{ minWidth: '1800px', tableLayout: 'fixed' }}>
-                  <thead>
+                  <thead className="sticky top-0 z-30">
                     <SortableContext items={taskColOrder} strategy={horizontalListSortingStrategy}>
-                      <tr className="border-b border-gray-100 bg-gray-50/80 sticky top-0 z-10">
+                      <tr className="border-b border-gray-100 bg-gray-50/80">
                         <th className="px-2 py-2.5 text-center text-gray-400 font-semibold bg-gray-50 border-r border-gray-100" style={{ width: '40px', minWidth: '40px' }}>#</th>
                         {safeArray(taskColOrder).map(colId => (
                           <SortableHeader key={colId} id={colId} label={taskColLabels[colId]} sortField={taskSortFields[colId]} type="task" />
@@ -1665,31 +2001,13 @@ function ClientDetailPageContent() {
 
         {/* ── Content Calendar Tab ─────────────────────────────────────────── */}
         <TabsContent value="content">
-          <div className="flex flex-wrap items-center gap-3 mb-4 p-4 bg-blue-50/50 border border-blue-100 rounded-lg shadow-sm">
-            <div className="flex-1 min-w-[200px]">
-              <h3 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Plus className="w-3.5 h-3.5" /> Quick Add Content
-              </h3>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <input
-                    type="text" value={newContent.blog_title}
-                    onChange={e => setNewContent(n => ({ ...n, blog_title: e.target.value }))}
-                    onKeyDown={e => e.key === 'Enter' && addContent()}
-                    placeholder="Blog Topic/Title..."
-                    className="w-full h-9 text-xs px-3 py-1 bg-white border border-blue-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400/20 focus:border-blue-400 transition-all font-medium"
-                    disabled={addingContent}
-                  />
-                </div>
-                <Button
-                  onClick={addContent}
-                  disabled={addingContent || !newContent.blog_title.trim()}
-                  className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all"
-                >
-                  {addingContent ? 'Saving...' : 'Add Content'}
-                </Button>
-              </div>
-            </div>
+          <div className="mb-4">
+            <Button
+              onClick={() => setShowAddContentModal(true)}
+              className="h-9 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Content
+            </Button>
           </div>
           <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-white border border-gray-200 rounded-lg">
             <div className="relative">
@@ -1771,9 +2089,9 @@ function ClientDetailPageContent() {
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleContentColDragEnd} modifiers={[restrictToHorizontalAxis]}>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleContentRowDragEnd} modifiers={[restrictToVerticalAxis]}>
                 <table className="w-full text-sm" style={{ minWidth: '2000px', tableLayout: 'fixed' }}>
-                  <thead>
+                  <thead className="sticky top-0 z-30">
                     <SortableContext items={contentColOrder} strategy={horizontalListSortingStrategy}>
-                      <tr className="border-b border-gray-100 bg-gray-50/80 sticky top-0 z-10">
+                      <tr className="border-b border-gray-100 bg-gray-50/80">
                         <th className="px-2 py-2.5 text-center text-gray-400 font-semibold bg-gray-50 border-r border-gray-100"
                           style={{ width: '40px', minWidth: '40px', position: 'sticky', left: 0, zIndex: 15 }}>
                           #
@@ -1974,10 +2292,37 @@ function ClientDetailPageContent() {
           <form onSubmit={saveSettings} className="space-y-3">
             <div><Label>Name</Label><Input value={settingsForm.name || ''} onChange={e => setSettingsForm(f => ({ ...f, name: e.target.value }))} className="mt-1" /></div>
             <div><Label>Service Type</Label>
-              <Select value={settingsForm.service_type || 'SEO'} onValueChange={v => setSettingsForm(f => ({ ...f, service_type: v }))}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>{SERVICE_TYPES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="mt-1 w-full h-9 px-3 text-sm rounded-md border border-input bg-background flex items-center gap-1.5 text-left">
+                    {(() => {
+                      const selected = Array.isArray(settingsForm.service_type) ? settingsForm.service_type : (settingsForm.service_type ? [settingsForm.service_type] : [])
+                      return selected.length ? selected.join(', ') : <span className="text-gray-400">Select services…</span>
+                    })()}
+                    <span className="ml-auto text-gray-400">▾</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56">
+                  <DropdownMenuLabel className="text-xs">Select Services</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {SERVICE_TYPES.map(s => {
+                    const current = Array.isArray(settingsForm.service_type) ? settingsForm.service_type : (settingsForm.service_type ? [settingsForm.service_type] : [])
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={s}
+                        checked={current.includes(s)}
+                        onCheckedChange={(checked) => {
+                          const next = checked ? [...current, s] : current.filter(x => x !== s)
+                          setSettingsForm(f => ({ ...f, service_type: next }))
+                        }}
+                        className="text-xs"
+                      >
+                        {s}
+                      </DropdownMenuCheckboxItem>
+                    )
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
             <div><Label>Portal Password <span className="text-gray-400 text-xs">(leave empty for public)</span></Label>
               <Input value={settingsForm.portal_password || ''} onChange={e => setSettingsForm(f => ({ ...f, portal_password: e.target.value }))} placeholder="Optional" className="mt-1" />
@@ -2017,6 +2362,21 @@ function ClientDetailPageContent() {
           onClose={() => setFeedbackModal(null)}
         />
       )}
+      <AddClientTaskModal
+        isOpen={showAddTaskModal}
+        onClose={() => setShowAddTaskModal(false)}
+        service={tService}
+        members={allMembers}
+        onAdd={addTask}
+        isAdding={addingTask}
+      />
+      <AddClientContentModal
+        isOpen={showAddContentModal}
+        onClose={() => setShowAddContentModal(false)}
+        members={allMembers}
+        onAdd={addContent}
+        isAdding={addingContent}
+      />
     </div>
 
   )

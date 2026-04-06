@@ -12,7 +12,7 @@ function TeamPageContent() {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedMember, setSelectedMember] = useState(null)
-  const [memberTasks, setMemberTasks] = useState({ seo: [], email: [], paid: [] })
+  const [memberTasks, setMemberTasks] = useState({ seo: [], email: [], paid: [], social: [] })
   const [loadingMemberTasks, setLoadingMemberTasks] = useState(false)
   const [confirmConfig, setConfirmConfig] = useState(null)
 
@@ -35,14 +35,14 @@ function TeamPageContent() {
   const openMemberTasks = async (member) => {
     setSelectedMember(member)
     setLoadingMemberTasks(true)
-    setMemberTasks({ seo: [], email: [], paid: [] })
+    setMemberTasks({ seo: [], email: [], paid: [], social: [] })
     try {
       const res = await apiFetch(`/api/team/workload/${member.id}`)
       const payload = await res.json()
-      setMemberTasks(payload?.services || { seo: [], email: [], paid: [] })
+      setMemberTasks(payload?.services || { seo: [], email: [], paid: [], social: [] })
     } catch (e) {
       console.error('Failed to load member tasks', e)
-      setMemberTasks({ seo: [], email: [], paid: [] })
+      setMemberTasks({ seo: [], email: [], paid: [], social: [] })
     } finally {
       setLoadingMemberTasks(false)
     }
@@ -74,6 +74,7 @@ function TeamPageContent() {
     { key: 'seo', label: 'SEO' },
     { key: 'email', label: 'Email' },
     { key: 'paid', label: 'Paid Ads' },
+    { key: 'social', label: 'Social Media' },
   ]
 
   return (

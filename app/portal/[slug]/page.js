@@ -25,6 +25,15 @@ const typeColors = {
   'Custom': 'bg-gray-50 text-gray-600',
 }
 
+/** Format a stored YYYY-MM-DD date string for display as DD-MM-YYYY */
+function fmtDate(v) {
+  if (!v) return null
+  const s = String(v).trim()
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`
+  return s
+}
+
 const APPROVAL_OPTIONS = APPROVALS
 const TOPIC_APPROVAL_OPTIONS = TOPIC_APPROVALS
 const BLOG_APPROVAL_OPTIONS = BLOG_APPROVALS
@@ -288,11 +297,11 @@ function SocialIdeaApprovalButton({ taskId, current, slug, portalPassword, onUpd
       const res = await fetch(`/api/portal/${slug}/tasks/${taskId}/approval`, {
         method: 'PUT',
         headers,
-        body: JSON.stringify({ service: 'social', approval_type: 'content_idea', approval_value: choice, feedback: feedbackNote }),
+        body: JSON.stringify({ service: 'social', approval_type: 'content_idea', approval_value: choice, feedback: feedbackNote || null }),
       })
       if (res.ok) {
         onUpdate(taskId, 'content_idea_approval', choice)
-        if (feedbackNote) onUpdate(taskId, 'content_idea_feedback', feedbackNote)
+        onUpdate(taskId, 'content_idea_feedback', feedbackNote || null)
         setShowNote(false)
         setNote('')
       } else {
@@ -302,7 +311,10 @@ function SocialIdeaApprovalButton({ taskId, current, slug, portalPassword, onUpd
     } finally { setLoading(false) }
   }
 
-  const colorClass = val === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' : val === 'Required Changes' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-gray-100 text-gray-500 border-gray-200'
+  const colorClass = val === 'Approved' ? 'bg-green-100 text-green-700 border-green-200'
+    : val === 'Required Changes' ? 'bg-red-100 text-red-700 border-red-200'
+    : val === 'Rejected' ? 'bg-orange-100 text-orange-700 border-orange-200'
+    : 'bg-gray-100 text-gray-500 border-gray-200'
 
   return (
     <div className="relative">
@@ -312,10 +324,10 @@ function SocialIdeaApprovalButton({ taskId, current, slug, portalPassword, onUpd
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {['Pending', 'Approved', 'Required Changes'].map(opt => (
+          {['Pending', 'Approved', 'Required Changes', 'Rejected'].map(opt => (
             <SelectItem key={opt} value={opt} className="text-xs">
               <span className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${opt === 'Approved' ? 'bg-green-500' : opt === 'Required Changes' ? 'bg-red-500' : 'bg-gray-300'}`} />
+                <span className={`w-2 h-2 rounded-full ${opt === 'Approved' ? 'bg-green-500' : opt === 'Required Changes' ? 'bg-red-500' : opt === 'Rejected' ? 'bg-orange-500' : 'bg-gray-300'}`} />
                 {opt}
               </span>
             </SelectItem>
@@ -370,11 +382,11 @@ function SocialDraftApprovalButton({ taskId, current, slug, portalPassword, onUp
       const res = await fetch(`/api/portal/${slug}/tasks/${taskId}/approval`, {
         method: 'PUT',
         headers,
-        body: JSON.stringify({ service: 'social', approval_type: 'content_draft', approval_value: choice, feedback: feedbackNote }),
+        body: JSON.stringify({ service: 'social', approval_type: 'content_draft', approval_value: choice, feedback: feedbackNote || null }),
       })
       if (res.ok) {
         onUpdate(taskId, 'content_draft_approval', choice)
-        if (feedbackNote) onUpdate(taskId, 'draft_feedback', feedbackNote)
+        onUpdate(taskId, 'draft_feedback', feedbackNote || null)
         setShowNote(false)
         setNote('')
       } else {
@@ -384,7 +396,10 @@ function SocialDraftApprovalButton({ taskId, current, slug, portalPassword, onUp
     } finally { setLoading(false) }
   }
 
-  const colorClass = val === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' : val === 'Required Changes' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-gray-100 text-gray-500 border-gray-200'
+  const colorClass = val === 'Approved' ? 'bg-green-100 text-green-700 border-green-200'
+    : val === 'Required Changes' ? 'bg-red-100 text-red-700 border-red-200'
+    : val === 'Rejected' ? 'bg-orange-100 text-orange-700 border-orange-200'
+    : 'bg-gray-100 text-gray-500 border-gray-200'
 
   return (
     <div className="relative">
@@ -394,10 +409,10 @@ function SocialDraftApprovalButton({ taskId, current, slug, portalPassword, onUp
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {['Pending', 'Approved', 'Required Changes'].map(opt => (
+          {['Pending', 'Approved', 'Required Changes', 'Rejected'].map(opt => (
             <SelectItem key={opt} value={opt} className="text-xs">
               <span className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${opt === 'Approved' ? 'bg-green-500' : opt === 'Required Changes' ? 'bg-red-500' : 'bg-gray-300'}`} />
+                <span className={`w-2 h-2 rounded-full ${opt === 'Approved' ? 'bg-green-500' : opt === 'Required Changes' ? 'bg-red-500' : opt === 'Rejected' ? 'bg-orange-500' : 'bg-gray-300'}`} />
                 {opt}
               </span>
             </SelectItem>
@@ -443,6 +458,104 @@ function ExpandableText({ text }) {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
             <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{text}</p>
             <button type="button" onClick={() => setOpen(false)} className="mt-4 w-full h-9 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Close</button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+/**
+ * SocialFeedbackCell — shows existing feedback with a click-to-edit popup.
+ * Allows the client to edit or clear their feedback note.
+ */
+function SocialFeedbackCell({ taskId, approvalType, approvalValue, feedbackValue, slug, portalPassword, onUpdate }) {
+  const [open, setOpen] = useState(false)
+  const [note, setNote] = useState(feedbackValue || '')
+  const [saving, setSaving] = useState(false)
+
+  const hasApproval = approvalValue === 'Required Changes' || approvalValue === 'Rejected'
+  const feedbackField = approvalType === 'content_idea' ? 'content_idea_feedback' : 'draft_feedback'
+
+  if (!hasApproval) return <span className="text-gray-300 text-xs">—</span>
+
+  const label = approvalType === 'content_idea' ? 'Idea' : 'Draft'
+
+  const handleOpen = () => {
+    setNote(feedbackValue || '')
+    setOpen(true)
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const headers = { 'Content-Type': 'application/json' }
+      if (portalPassword) headers['X-Portal-Password'] = portalPassword
+      const res = await fetch(`/api/portal/${slug}/tasks/${taskId}/approval`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          service: 'social',
+          approval_type: approvalType,
+          approval_value: approvalValue,
+          feedback: note.trim() || null
+        }),
+      })
+      if (res.ok) {
+        onUpdate(taskId, feedbackField, note.trim() || null)
+        setOpen(false)
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Failed to save feedback')
+      }
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={handleOpen}
+        className={`w-full text-left rounded-md px-2 py-1.5 text-xs transition-colors border ${
+          feedbackValue
+            ? 'text-red-700 bg-red-50 border-red-100 hover:bg-red-100'
+            : 'text-gray-400 bg-gray-50 border-gray-100 hover:bg-gray-100'
+        }`}
+        title={feedbackValue ? `${label}: ${feedbackValue}` : `Add ${label.toLowerCase()} feedback`}
+      >
+        {feedbackValue ? (
+          <span className="line-clamp-2 leading-relaxed">{label}: {feedbackValue}</span>
+        ) : (
+          <span className="italic">Add feedback…</span>
+        )}
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setOpen(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-gray-900 mb-1">Edit Feedback — {label}</h3>
+            <p className="text-xs text-gray-500 mb-4">Update your feedback for the team. Leave empty to clear.</p>
+            <textarea
+              autoFocus
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              rows={5}
+              placeholder="Describe your feedback..."
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y"
+            />
+            <div className="flex gap-2 mt-4">
+              <button type="button" onClick={() => setOpen(false)} className="flex-1 h-9 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="flex-1 h-9 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {saving ? 'Saving…' : 'Save Feedback'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -599,10 +712,11 @@ export default function ClientPortalPage() {
     if (serviceInitialized.current) return
     if (client?.service_type) {
       serviceInitialized.current = true
-      const srv = client.service_type.toLowerCase()
-      if (srv.includes('email')) setPortalService('email')
-      else if (srv.includes('paid')) setPortalService('paid')
-      else if (srv.includes('social')) setPortalService('social')
+      const srvArr = Array.isArray(client.service_type) ? client.service_type : (client.service_type ? [client.service_type] : [])
+      const srvStr = srvArr.join(',').toLowerCase()
+      if (srvStr.includes('email')) setPortalService('email')
+      else if (srvStr.includes('paid')) setPortalService('paid')
+      else if (srvStr.includes('social')) setPortalService('social')
       else setPortalService('seo')
     }
   }, [client])
@@ -627,6 +741,14 @@ export default function ClientPortalPage() {
   const currentTasks = useMemo(() => {
     const raw = safeArray(tasks).filter(t => t.service === portalService)
     if (!taskSortCol) {
+      // Social media: sort by posting_date ascending (no date = end)
+      if (portalService === 'social') {
+        return [...raw].sort((a, b) => {
+          const aDate = a?.posting_date ? new Date(a.posting_date).getTime() : Infinity
+          const bDate = b?.posting_date ? new Date(b.posting_date).getTime() : Infinity
+          return aDate - bDate
+        })
+      }
       return [...raw].sort((a, b) => {
         const ai = STATUS_ORDER.indexOf(a?.status || '')
         const bi = STATUS_ORDER.indexOf(b?.status || '')
@@ -744,10 +866,10 @@ export default function ClientPortalPage() {
             </div>
             <div>
               <h1 className="font-bold text-gray-900">{client?.name}</h1>
-              <p className="text-xs text-gray-400">{client?.service_type} · CubeHQ</p>
+              <p className="text-xs text-gray-400">{Array.isArray(client?.service_type) ? client.service_type.join(', ') : client?.service_type} · CubeHQ</p>
             </div>
           </div>
-          <span className="inline-flex items-center px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">{client?.service_type}</span>
+          <span className="inline-flex items-center px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">{Array.isArray(client?.service_type) ? client.service_type.join(', ') : client?.service_type}</span>
         </div>
       </header>
 
@@ -818,7 +940,8 @@ export default function ClientPortalPage() {
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ minWidth: 170 }}>Draft Approval</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ minWidth: 130 }}>Live Link</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ minWidth: 120 }}>Posting Date</th>
-                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500" style={{ minWidth: 220 }}>Feedback</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500" style={{ minWidth: 200 }}>Idea Feedback</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500" style={{ minWidth: 200 }}>Draft Feedback</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -898,19 +1021,31 @@ export default function ClientPortalPage() {
                         </td>
                         {/* Posting Date */}
                         <td className="px-4 py-4 text-xs text-gray-500 whitespace-nowrap">
-                          {task?.posting_date || '—'}
+                          {fmtDate(task?.posting_date) || '—'}
                         </td>
-                        {/* Feedback (shows whichever is most recent) */}
-                        <td className="px-4 py-4 text-xs text-gray-500 max-w-[180px]">
-                          {(task?.content_idea_approval === 'Required Changes' && task?.content_idea_feedback) ? (
-                            <span className="block text-red-600 text-[10px] bg-red-50 px-1.5 py-0.5 rounded border border-red-100 line-clamp-2" title={task.content_idea_feedback}>
-                              Idea: {task.content_idea_feedback}
-                            </span>
-                          ) : (task?.content_draft_approval === 'Required Changes' && task?.draft_feedback) ? (
-                            <span className="block text-red-600 text-[10px] bg-red-50 px-1.5 py-0.5 rounded border border-red-100 line-clamp-2" title={task.draft_feedback}>
-                              Draft: {task.draft_feedback}
-                            </span>
-                          ) : '—'}
+                        {/* Idea Feedback */}
+                        <td className="px-4 py-4 max-w-[180px]">
+                          <SocialFeedbackCell
+                            taskId={task?.id}
+                            approvalType="content_idea"
+                            approvalValue={task?.content_idea_approval}
+                            feedbackValue={task?.content_idea_feedback}
+                            slug={slug}
+                            portalPassword={portalPassword}
+                            onUpdate={handleSocialFieldUpdate}
+                          />
+                        </td>
+                        {/* Draft Feedback */}
+                        <td className="px-4 py-4 max-w-[180px]">
+                          <SocialFeedbackCell
+                            taskId={task?.id}
+                            approvalType="content_draft"
+                            approvalValue={task?.content_draft_approval}
+                            feedbackValue={task?.draft_feedback}
+                            slug={slug}
+                            portalPassword={portalPassword}
+                            onUpdate={handleSocialFieldUpdate}
+                          />
                         </td>
                       </tr>
                     ))}
@@ -964,8 +1099,8 @@ export default function ClientPortalPage() {
                             {task?.status}
                           </span>
                         </td>
-                        <td className="px-4 py-4 text-xs text-gray-500 truncate" title={task?.client_approval === 'Required Changes' ? task?.client_feedback_note : (task?.remarks || '')}>
-                          {task?.client_approval === 'Required Changes' ? task?.client_feedback_note : (task?.remarks || '—')}
+                        <td className="px-4 py-4 max-w-[200px]">
+                          <ExpandableText text={task?.client_approval === 'Required Changes' ? task?.client_feedback_note : (task?.remarks || null)} />
                         </td>
                         <td className="px-4 py-4 text-center overflow-hidden">
                           {task?.client_link_visible && task?.link_url ? (
@@ -990,7 +1125,7 @@ export default function ClientPortalPage() {
                             onUpdate={handleApprovalUpdate}
                           />
                         </td>
-                        <td className="px-4 py-4 text-xs text-gray-500 truncate">{task?.eta_end || task?.campaign_live_date || task?.live_date || task?.campaign_live || '—'}</td>
+                        <td className="px-4 py-4 text-xs text-gray-500 whitespace-nowrap">{fmtDate(task?.eta_end || task?.campaign_live_date || task?.live_date || task?.campaign_live) || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1050,7 +1185,7 @@ export default function ClientPortalPage() {
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{item?.published_date || '—'}</td>
+                        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{fmtDate(item?.published_date) || '—'}</td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           {item?.blog_link ? (
                             <a href={normalizeUrl(item.blog_link)} target="_blank" rel="noopener noreferrer"
@@ -1080,10 +1215,8 @@ export default function ClientPortalPage() {
                             onUpdate={handleContentApprovalUpdate}
                           />
                         </td>
-                        <td className="px-4 py-3 text-xs text-gray-500 truncate max-w-[160px]" title={item?.blog_approval_status === 'Changes Required' ? item?.blog_client_feedback_note : ''}>
-                          {item?.blog_approval_status === 'Changes Required' ? (
-                            <span className="text-red-600 text-[10px] bg-red-50 px-1 py-0.5 rounded border border-red-100 line-clamp-2">{item?.blog_client_feedback_note || 'Changes requested'}</span>
-                          ) : '—'}
+                        <td className="px-4 py-3 max-w-[180px]">
+                          <ExpandableText text={item?.blog_approval_status === 'Changes Required' ? (item?.blog_client_feedback_note || 'Changes requested') : null} />
                         </td>
                       </tr>
                     ))}

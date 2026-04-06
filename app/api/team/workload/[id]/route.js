@@ -6,10 +6,10 @@ import { buildAssignedToFilter } from '@/lib/team/assignee'
 
 export const runtime = 'nodejs';
 
-function shapeTask(task, clientMap) {
+function shapeTask(task, clientMap, isSocial = false) {
     return {
         id: task.id,
-        title: task.title,
+        title: isSocial ? (task.format || task.content?.slice(0, 50) || 'Social post') : task.title,
         status: task.status,
         client_name: clientMap[task.client_id] || 'Unknown'
     }
@@ -27,14 +27,16 @@ export async function GET(request, { params }) {
 
         const query = buildAssignedToFilter(memberId)
         const projection = { _id: 0, id: 1, title: 1, status: 1, client_id: 1 }
+        const socialProjection = { _id: 0, id: 1, format: 1, content: 1, status: 1, client_id: 1 }
 
-        const [seoTasks, emailTasks, paidTasks] = await Promise.all([
+        const [seoTasks, emailTasks, paidTasks, socialTasks] = await Promise.all([
             database.collection('tasks').find(query, { projection }).sort({ updated_at: -1, created_at: -1 }).toArray(),
             database.collection('email_tasks').find(query, { projection }).sort({ updated_at: -1, created_at: -1 }).toArray(),
             database.collection('paid_tasks').find(query, { projection }).sort({ updated_at: -1, created_at: -1 }).toArray(),
+            database.collection('social_tasks').find(query, { projection: socialProjection }).sort({ updated_at: -1, created_at: -1 }).toArray(),
         ])
 
-        const allTasks = [...safeArray(seoTasks), ...safeArray(emailTasks), ...safeArray(paidTasks)]
+        const allTasks = [...safeArray(seoTasks), ...safeArray(emailTasks), ...safeArray(paidTasks), ...safeArray(socialTasks)]
         const clientIds = [...new Set(allTasks.map((t) => t.client_id).filter(Boolean))]
         const clients = clientIds.length
             ? await database.collection('clients').find({ id: { $in: clientIds } }, { projection: { _id: 0, id: 1, name: 1 } }).toArray()
@@ -46,6 +48,7 @@ export async function GET(request, { params }) {
                 seo: safeArray(seoTasks).map((t) => shapeTask(t, clientMap)),
                 email: safeArray(emailTasks).map((t) => shapeTask(t, clientMap)),
                 paid: safeArray(paidTasks).map((t) => shapeTask(t, clientMap)),
+                social: safeArray(socialTasks).map((t) => shapeTask(t, clientMap, true)),
             }
         }))
     })

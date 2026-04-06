@@ -16,8 +16,8 @@ const MONGO_URL = process.env.MONGO_URL
 const DB_NAME = process.env.DB_NAME || 'agency_dashboard'
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-const TARGET_EMAIL = 'ravishankar@cubehq.ai'
-const NEW_PASSWORD  = 'ravishankar@cubehq.ai'
+const TARGET_EMAIL = 'shreya@cubehq.ai'
+const NEW_PASSWORD  = 'shreya@cubehq.ai'
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function main() {

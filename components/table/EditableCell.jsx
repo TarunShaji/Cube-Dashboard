@@ -4,6 +4,15 @@ import { useEffect, useState, useRef } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { statusColors, priorityColors, approvalColors, topicApprovalColors, blogStatusColors } from '@/lib/constants'
 
+/** Format a stored YYYY-MM-DD date string for display as DD-MM-YYYY */
+function fmtDate(v) {
+    if (!v) return ''
+    const s = String(v).trim()
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (m) return `${m[3]}-${m[2]}-${m[1]}`
+    return s
+}
+
 export function EditableCell({ value, type = 'text', options = [], onSave, placeholder = '—', disabled = false }) {
     const [editing, setEditing] = useState(false)
     const [val, setVal] = useState(value || '')
@@ -161,6 +170,10 @@ export function EditableCell({ value, type = 'text', options = [], onSave, place
                 {val || 'Draft'}
             </span>
         )
+        if (type === 'date') {
+            const display = fmtDate(val)
+            return <span className={`text-xs truncate block ${disabled ? 'text-gray-400' : 'text-gray-700'}`} title={display}>{display || <span className="text-gray-300">—</span>}</span>
+        }
         return <span className={`text-xs truncate block ${disabled ? 'text-gray-400' : 'text-gray-700'}`} title={val}>{val || <span className="text-gray-300">—</span>}</span>
     }
 

@@ -25,7 +25,8 @@ export function LinkCell({ value, onSave }) {
         if (normalized && !normalized.match(/^https?:\/\//i) && !normalized.startsWith('//')) {
             normalized = 'https://' + normalized
         }
-        if (normalized !== (value || '')) onSave(normalized)
+        const toSave = normalized || null
+        if (toSave !== (value || null)) onSave(toSave)
         setVal(normalized)
     }
 
