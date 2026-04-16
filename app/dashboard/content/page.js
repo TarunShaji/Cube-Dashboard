@@ -193,7 +193,7 @@ const DEFAULT_COL_ORDER = [
   'writer', 'outline', 'intern_status',
   'blog_doc', 'blog_internal_approval', 'blog_status',
   'send_link', 'date_sent', 'blog_approval', 'approved_on', 'blog_feedback',
-  'link', 'published', 'comments', 'actions'
+  'link', 'published', 'created_at', 'comments', 'actions'
 ]
 
 function ContentCalendarContent() {
@@ -208,6 +208,7 @@ function ContentCalendarContent() {
   const filterTopicApproval = searchParams.get('topic_approval') || 'all'
   const filterInternalApproval = searchParams.get('internal_approval') || 'all'
   const filterClientApproval = searchParams.get('client_approval') || 'all'
+  const filterInternStatus = searchParams.get('intern_status') || 'all'
   const filterPublished = searchParams.get('published') || 'all'
   const filterSearch = searchParams.get('search') || ''
   const sortBy = searchParams.get('sort_by') || ''
@@ -585,6 +586,11 @@ function ContentCalendarContent() {
               {colId === 'blog_doc' && <LinkCell value={item.blog_doc_link} onSave={v => updateContent(item.id, 'blog_doc_link', v)} />}
               {colId === 'link' && <LinkCell value={item.blog_link} onSave={v => updateContent(item.id, 'blog_link', v)} />}
               {colId === 'published' && <EditableCell value={item.published_date} type="date" onSave={v => updateContent(item.id, 'published_date', v)} />}
+              {colId === 'created_at' && (
+                <span className="text-xs text-gray-400 whitespace-nowrap">
+                  {item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                </span>
+              )}
               {colId === 'date_sent' && (
                 <span className="text-xs text-gray-500">{item.date_sent_for_approval || '—'}</span>
               )}
@@ -610,7 +616,7 @@ function ContentCalendarContent() {
     blog_doc: 'Blog Doc', blog_internal_approval: 'Internal Approval', send_link: 'Send Link',
     date_sent: 'Sent For Appr.',
     blog_approval: 'Client Approval', approved_on: 'Approved On', blog_feedback: 'Feedback',
-    link: 'Blog Link', published: 'Published', comments: 'Notes', actions: ''
+    link: 'Blog Link', published: 'Published', created_at: 'Created', comments: 'Notes', actions: ''
   }
   const columnSortFields = {
     client: 'client_name',
@@ -632,7 +638,8 @@ function ContentCalendarContent() {
     blog_feedback: 'blog_client_feedback_note',
     link: 'blog_link',
     required_by: 'required_by',
-    published: 'published_date'
+    published: 'published_date',
+    created_at: 'created_at'
   }
 
   return (
@@ -731,6 +738,13 @@ function ContentCalendarContent() {
                 {BLOG_APPROVALS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={filterInternStatus} onValueChange={v => updateQueryParams({ intern_status: v })}>
+              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue placeholder="Intern Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any Intern Status</SelectItem>
+                {INTERN_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Select value={filterPublished} onValueChange={v => updateQueryParams({ published: v })}>
               <SelectTrigger className="w-28 h-8 text-xs"><SelectValue placeholder="Published?" /></SelectTrigger>
               <SelectContent>
@@ -741,12 +755,12 @@ function ContentCalendarContent() {
             </Select>
           </>
         )}
-        {(filterSearch || filterClient !== 'all' || filterStatus !== 'all' || filterWeek || filterWriter || filterTopicApproval !== 'all' || filterInternalApproval !== 'all' || filterClientApproval !== 'all' || filterPublished !== 'all') && (
+        {(filterSearch || filterClient !== 'all' || filterStatus !== 'all' || filterWeek || filterWriter || filterTopicApproval !== 'all' || filterInternalApproval !== 'all' || filterClientApproval !== 'all' || filterInternStatus !== 'all' || filterPublished !== 'all') && (
           <button onClick={() => {
             updateQueryParams({
               client_id: 'all', blog_status: 'all', week: '', writer: '',
               topic_approval: 'all', internal_approval: 'all', client_approval: 'all',
-              published: 'all', search: ''
+              intern_status: 'all', published: 'all', search: ''
             })
             setLocalSearch('')
           }} className="text-xs text-gray-400 hover:text-gray-600 underline ml-1">Clear</button>

@@ -438,28 +438,28 @@ function TasksPageContent() {
         return {
           endpoint: '/api/email-tasks',
           label: 'Email Tasks',
-          columns: ['serial', 'selection', 'client', 'title', 'comments', 'status', 'team_label', 'assigned', 'started_date', 'link', 'internal_approval', 'send_link', 'campaign_live', 'live_data', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['serial', 'selection', 'client', 'title', 'comments', 'status', 'team_label', 'assigned', 'started_date', 'created_at', 'link', 'internal_approval', 'send_link', 'campaign_live', 'live_data', 'client_approval', 'client_feedback', 'actions'],
           widths: EMAIL_COLUMN_WIDTHS
         }
       case 'paid':
         return {
           endpoint: '/api/paid-tasks',
           label: 'Paid Ads Tasks',
-          columns: ['serial', 'selection', 'client', 'title', 'comments', 'status', 'team_label', 'assigned', 'started_date', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['serial', 'selection', 'client', 'title', 'comments', 'status', 'team_label', 'assigned', 'started_date', 'created_at', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
           widths: PAID_COLUMN_WIDTHS
         }
       case 'social':
         return {
           endpoint: '/api/social-tasks',
           label: 'Social Media Tasks',
-          columns: ['serial', 'selection', 'client', 'format', 'reference', 'visual_brief', 'content', 'caption', 'social_internal_approval', 'send_idea', 'content_idea_approval', 'content_idea_feedback', 'content_draft', 'send_draft', 'content_draft_approval', 'draft_feedback', 'live_link', 'posting_date', 'social_status', 'team_label', 'assigned', 'started_date', 'comments', 'actions'],
+          columns: ['serial', 'selection', 'client', 'format', 'reference', 'visual_brief', 'content', 'caption', 'social_internal_approval', 'send_idea', 'content_idea_approval', 'content_idea_feedback', 'content_draft', 'send_draft', 'content_draft_approval', 'draft_feedback', 'live_link', 'posting_date', 'social_status', 'team_label', 'assigned', 'started_date', 'created_at', 'comments', 'actions'],
           widths: SOCIAL_COLUMN_WIDTHS
         }
       default:
         return {
           endpoint: '/api/tasks',
           label: 'SEO Tasks',
-          columns: ['serial', 'selection', 'client', 'title', 'comments', 'comments_for_client', 'category', 'status', 'priority', 'eta', 'team_label', 'assigned', 'started_date', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['serial', 'selection', 'client', 'title', 'comments', 'comments_for_client', 'category', 'status', 'priority', 'eta', 'team_label', 'assigned', 'started_date', 'created_at', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
           widths: TASK_COLUMN_WIDTHS
         }
     }
@@ -812,6 +812,11 @@ function TasksPageContent() {
               {colId === 'priority' && <EditableCell value={task.priority} type="priority" options={PRIORITIES} onSave={v => updateTask(task.id, 'priority', v)} />}
               {colId === 'eta' && <EditableCell value={task.eta_end} type="date" onSave={v => updateTask(task.id, 'eta_end', v)} />}
               {colId === 'started_date' && <EditableCell value={task.started_date} type="date" onSave={v => updateTask(task.id, 'started_date', v)} />}
+              {colId === 'created_at' && (
+                <span className="text-xs text-gray-400 whitespace-nowrap">
+                  {task.created_at ? new Date(task.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                </span>
+              )}
               {colId === 'team_label' && <EditableCell value={task.team_label} type="select" options={TEAM_LABELS} onSave={v => updateTask(task.id, 'team_label', v)} />}
               {colId === 'assigned' && (
                 <AssigneeCell
@@ -1006,7 +1011,7 @@ function TasksPageContent() {
 
   const columnLabels = {
     selection: '', serial: '#', client: 'Client', title: 'Task', category: 'Category', status: 'Status', priority: 'Priority',
-    eta: 'ETA End', started_date: 'Start Date', team_label: 'Team', assigned: 'Assigned', link: 'Link',
+    eta: 'ETA End', started_date: 'Start Date', created_at: 'Created', team_label: 'Team', assigned: 'Assigned', link: 'Link',
     internal_approval: 'Internal Approval', send_link: 'Send Link',
     campaign_live: 'Campaign Live', live_data: 'Live Data',
     live_link: 'Live Link', live_date: 'Live Date',
@@ -1026,6 +1031,7 @@ function TasksPageContent() {
     priority: 'priority',
     eta: 'eta_end',
     started_date: 'started_date',
+    created_at: 'created_at',
     team_label: 'team_label',
     assigned: 'assigned_name',
     link: 'link_url',

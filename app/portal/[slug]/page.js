@@ -762,7 +762,11 @@ export default function ClientPortalPage() {
       return [...raw].sort((a, b) => {
         const ai = STATUS_ORDER.indexOf(a?.status || '')
         const bi = STATUS_ORDER.indexOf(b?.status || '')
-        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
+        const idxDiff = (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
+        if (idxDiff !== 0) return idxDiff
+        const aTime = a?.created_at ? new Date(a.created_at).getTime() : 0
+        const bTime = b?.created_at ? new Date(b.created_at).getTime() : 0
+        return bTime - aTime
       })
     }
     const factor = taskSortDir === 'asc' ? 1 : -1

@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { EditableCell } from '@/components/table/EditableCell'
 import { LinkCell } from '@/components/table/LinkCell'
-import { Plus, ExternalLink, Trash2, Link2, Settings, BarChart3, FileText, Folder, Image, Library, Search, Mail, TrendingUp, FolderOpen, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Plus, ExternalLink, Trash2, Pencil, Link2, Settings, BarChart3, FileText, Folder, Image, Library, Search, Mail, TrendingUp, FolderOpen, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import {
   STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, CONTENT_INTERNAL_APPROVALS, REPORT_TYPES, SERVICE_TYPES,
@@ -459,28 +459,28 @@ function ClientDetailPageContent() {
         return {
           endpoint: '/api/email-tasks',
           label: 'Email Tasks',
-          columns: ['selection', 'title', 'comments', 'status', 'team_label', 'assigned', 'started_date', 'link', 'internal_approval', 'send_link', 'campaign_live', 'live_data', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['selection', 'title', 'comments', 'status', 'team_label', 'assigned', 'started_date', 'created_at', 'link', 'internal_approval', 'send_link', 'campaign_live', 'live_data', 'client_approval', 'client_feedback', 'actions'],
           widths: EMAIL_COLUMN_WIDTHS
         }
       case 'paid':
         return {
           endpoint: '/api/paid-tasks',
           label: 'Paid Ads Tasks',
-          columns: ['selection', 'title', 'comments', 'status', 'team_label', 'assigned', 'started_date', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['selection', 'title', 'comments', 'status', 'team_label', 'assigned', 'started_date', 'created_at', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
           widths: PAID_COLUMN_WIDTHS
         }
       case 'social':
         return {
           endpoint: '/api/social-tasks',
           label: 'Social Media Tasks',
-          columns: ['selection', 'format', 'reference', 'visual_brief', 'content', 'caption', 'social_internal_approval', 'send_idea', 'content_idea_approval', 'content_idea_feedback', 'content_draft', 'send_draft', 'content_draft_approval', 'draft_feedback', 'live_link', 'posting_date', 'social_status', 'team_label', 'assigned', 'started_date', 'comments', 'actions'],
+          columns: ['selection', 'format', 'reference', 'visual_brief', 'content', 'caption', 'social_internal_approval', 'send_idea', 'content_idea_approval', 'content_idea_feedback', 'content_draft', 'send_draft', 'content_draft_approval', 'draft_feedback', 'live_link', 'posting_date', 'social_status', 'team_label', 'assigned', 'started_date', 'created_at', 'comments', 'actions'],
           widths: SOCIAL_COLUMN_WIDTHS
         }
       default:
         return {
           endpoint: '/api/tasks',
           label: 'SEO Tasks',
-          columns: ['selection', 'title', 'comments', 'comments_for_client', 'category', 'status', 'priority', 'eta', 'team_label', 'assigned', 'started_date', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['selection', 'title', 'comments', 'comments_for_client', 'category', 'status', 'priority', 'eta', 'team_label', 'assigned', 'started_date', 'created_at', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
           widths: TASK_COLUMN_WIDTHS
         }
     }
@@ -495,6 +495,7 @@ function ClientDetailPageContent() {
   const cTopic = searchParams.get('c_topic') || 'all'
   const cInternal = searchParams.get('c_internal') || 'all'
   const cClientAppr = searchParams.get('c_client') || 'all'
+  const cInternStatus = searchParams.get('c_intern_status') || 'all'
   const cPublished = searchParams.get('c_published') || 'all'
   const cSearch = searchParams.get('c_search') || ''
   const cSortBy = searchParams.get('c_sort_by') || ''
@@ -518,8 +519,8 @@ function ClientDetailPageContent() {
   if (tAssignee !== 'all') taskParams.set('assigned_to', tAssignee)
   if (tPriority !== 'all') taskParams.set('priority', tPriority)
   if (tSearch) taskParams.set('search', tSearch)
-  taskParams.set('page', tPage.toString())
-  taskParams.set('limit', '50')
+  if (tService === 'social') taskParams.set('page', tPage.toString())
+  taskParams.set('limit', tService === 'social' ? '50' : '9999')
   taskParams.set('enrich', '0')
 
   const contentParams = new URLSearchParams()
@@ -530,6 +531,7 @@ function ClientDetailPageContent() {
   if (cTopic !== 'all') contentParams.set('topic_approval', cTopic)
   if (cInternal !== 'all') contentParams.set('internal_approval', cInternal)
   if (cClientAppr !== 'all') contentParams.set('client_approval', cClientAppr)
+  if (cInternStatus !== 'all') contentParams.set('intern_status', cInternStatus)
   if (cPublished !== 'all') contentParams.set('published', cPublished)
   if (cSearch) contentParams.set('search', cSearch)
   contentParams.set('page', cPage.toString())
@@ -580,6 +582,8 @@ function ClientDetailPageContent() {
   const [showSettings, setShowSettings] = useState(false)
   const [showAddResource, setShowAddResource] = useState(false)
   const [resourceForm, setResourceForm] = useState({ name: '', url: '', type: 'link', category: 'Assets' })
+  const [editResource, setEditResource] = useState(null)
+  const [editReport, setEditReport] = useState(null)
   const [settingsForm, setSettingsForm] = useState({})
   const [taskColOrder, setTaskColOrder] = useState([])
   const [contentColOrder, setContentColOrder] = useState([])
@@ -623,7 +627,7 @@ function ClientDetailPageContent() {
       'writer', 'outline', 'intern_status',
       'blog_doc', 'blog_internal_approval', 'blog_status',
       'send_link', 'date_sent', 'blog_approval', 'approved_on', 'blog_feedback',
-      'link', 'published', 'comments', 'actions'
+      'link', 'published', 'created_at', 'comments', 'actions'
     ]
     if (parsedContent && Array.isArray(parsedContent)) {
       const cols = parsedContent.filter(c => c !== 'client')
@@ -932,6 +936,22 @@ function ClientDetailPageContent() {
     }
   }
 
+  const saveEditResource = async (e) => {
+    e.preventDefault()
+    const { id: resId, name, url, type, category } = editResource
+    await apiFetch(`/api/clients/${id}/resources/${resId}`, { method: 'PUT', body: JSON.stringify({ name, url, type, category }) })
+    setEditResource(null)
+    mutateResources()
+  }
+
+  const saveEditReport = async (e) => {
+    e.preventDefault()
+    const { id: reportId, title, report_type, report_url, report_date, notes } = editReport
+    await apiFetch(`/api/reports/${reportId}`, { method: 'PUT', body: JSON.stringify({ title, report_type, report_url, report_date, notes }) })
+    setEditReport(null)
+    mutateReports()
+  }
+
   const deleteResource = (resId) => {
     setConfirmConfig({
       title: 'Delete Resource',
@@ -1057,11 +1077,14 @@ function ClientDetailPageContent() {
   }
 
   const allTasks = useMemo(() => safeArray(tasks?.data || tasks), [tasks])
-  const tPagination = useMemo(() => ({
-    total: tasks?.total || 0,
-    page: tasks?.page || 1,
-    totalPages: tasks?.totalPages || 1
-  }), [tasks])
+  const tPagination = useMemo(() => {
+    if (tService === 'social') {
+      return { total: tasks?.total || 0, page: tasks?.page || 1, totalPages: tasks?.totalPages || 1 }
+    }
+    const total = allTasks.length
+    const totalPages = Math.max(1, Math.ceil(total / 50))
+    return { total, page: tPage, totalPages }
+  }, [tasks, allTasks, tPage, tService])
 
   const allReports = useMemo(() => safeArray(reports), [reports])
 
@@ -1097,13 +1120,13 @@ function ClientDetailPageContent() {
   const getTaskSortableValue = (task, field) => {
     if (!task || !field) return ''
     if (field === 'assigned_name') return toAssignedIds(task.assigned_to).map((id) => memberMap[id]).filter(Boolean).join(', ')
-    if (['eta_end', 'campaign_live_date', 'live_data', 'live_date'].includes(field)) return getDateValue(task[field])
+    if (['eta_end', 'campaign_live_date', 'live_data', 'live_date', 'created_at'].includes(field)) return getDateValue(task[field])
     return task[field] ?? ''
   }
 
   const getContentSortableValue = (item, field) => {
     if (!item || !field) return ''
-    if (['required_by', 'published_date', 'blog_approval_date', 'date_sent_for_approval'].includes(field)) return getDateValue(item[field])
+    if (['required_by', 'published_date', 'blog_approval_date', 'date_sent_for_approval', 'created_at'].includes(field)) return getDateValue(item[field])
     return item[field] ?? ''
   }
 
@@ -1140,15 +1163,26 @@ function ClientDetailPageContent() {
         return aDate - bDate
       })
     }
-    // Default order when no column sort is active: Completed → In Progress → To Be Started → Implemented → Blocked → others
+    // Default order: Completed → In Progress → To Be Started → Implemented → Blocked → others
+    // Within each status group, newest first (created_at DESC)
     return [...allTasks].sort((a, b) => {
       const ai = STATUS_ORDER.indexOf(a?.status || '')
       const bi = STATUS_ORDER.indexOf(b?.status || '')
       const aIdx = ai === -1 ? STATUS_ORDER.length : ai
       const bIdx = bi === -1 ? STATUS_ORDER.length : bi
-      return aIdx - bIdx
+      if (aIdx !== bIdx) return aIdx - bIdx
+      const aTime = a?.created_at ? new Date(a.created_at).getTime() : 0
+      const bTime = b?.created_at ? new Date(b.created_at).getTime() : 0
+      return bTime - aTime
     })
   }, [allTasks, taskSortConfig, memberMap, tService])
+
+  const pagedTasks = useMemo(() => {
+    if (tService === 'social') return sortedTasks
+    const start = (tPage - 1) * 50
+    return sortedTasks.slice(start, start + 50)
+  }, [sortedTasks, tPage, tService])
+
   const sortedContent = useMemo(() => {
     if (contentSortConfig.field) return sortRows(allContent, contentSortConfig, getContentSortableValue)
     return [...allContent].sort((a, b) => {
@@ -1239,7 +1273,7 @@ function ClientDetailPageContent() {
   const TaskSortableRow = ({ task }) => {
     if (!task?.id) return null
     // Serial number accounts for pagination offset
-    const serialNum = (tPagination.page - 1) * 50 + sortedTasks.findIndex(t => t.id === task.id) + 1
+    const serialNum = sortedTasks.findIndex(t => t.id === task.id) + 1
 
     return (
       <tr className="hover:bg-gray-50 group border-b border-gray-100">
@@ -1285,6 +1319,11 @@ function ClientDetailPageContent() {
               {colId === 'priority' && <EditableCell value={task.priority} type="priority" options={PRIORITIES} onSave={v => updateTask(task.id, 'priority', v)} />}
               {colId === 'eta' && <EditableCell value={task.eta_end} type="date" onSave={v => updateTask(task.id, 'eta_end', v)} />}
               {colId === 'started_date' && <EditableCell value={task.started_date} type="date" onSave={v => updateTask(task.id, 'started_date', v)} />}
+              {colId === 'created_at' && (
+                <span className="text-xs text-gray-400 whitespace-nowrap">
+                  {task.created_at ? new Date(task.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                </span>
+              )}
               {colId === 'team_label' && <EditableCell value={task.team_label} type="select" options={TEAM_LABELS} onSave={v => updateTask(task.id, 'team_label', v)} />}
               {
                 colId === 'assigned' && (
@@ -1634,6 +1673,11 @@ function ClientDetailPageContent() {
               {colId === 'blog_doc' && <LinkCell value={item.blog_doc_link} onSave={v => updateContent(item.id, 'blog_doc_link', v)} />}
               {colId === 'link' && <LinkCell value={item.blog_link} onSave={v => updateContent(item.id, 'blog_link', v)} />}
               {colId === 'published' && <EditableCell value={item.published_date} type="date" onSave={v => updateContent(item.id, 'published_date', v)} />}
+              {colId === 'created_at' && (
+                <span className="text-xs text-gray-400 whitespace-nowrap">
+                  {item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                </span>
+              )}
               {colId === 'date_sent' && (
                 <span className="text-xs text-gray-500">{item.date_sent_for_approval || '—'}</span>
               )}
@@ -1653,7 +1697,7 @@ function ClientDetailPageContent() {
   const taskColLabels = {
     selection: '',
     title: 'Task', category: 'Category', status: 'Status', priority: 'Priority',
-    eta: 'ETA End', started_date: 'Start Date', team_label: 'Team', assigned: 'Assigned', link: 'Link', internal_approval: 'Internal Approval',
+    eta: 'ETA End', started_date: 'Start Date', created_at: 'Created', team_label: 'Team', assigned: 'Assigned', link: 'Link', internal_approval: 'Internal Approval',
     campaign_live: 'Campaign Live', live_data: 'Live Data',
     live_link: 'Live Link', live_date: 'Live Date',
     send_link: 'Send Link', client_approval: 'Client Approval', client_feedback: 'Feedback',
@@ -1671,6 +1715,7 @@ function ClientDetailPageContent() {
     priority: 'priority',
     eta: 'eta_end',
     started_date: 'started_date',
+    created_at: 'created_at',
     team_label: 'team_label',
     assigned: 'assigned_name',
     link: 'link_url',
@@ -1702,7 +1747,7 @@ function ClientDetailPageContent() {
     blog_doc: 'Blog Doc', blog_internal_approval: 'Internal Approval', send_link: 'Send Link',
     date_sent: 'Sent For Appr.',
     blog_approval: 'Client Approval', approved_on: 'Approved On', blog_feedback: 'Feedback',
-    link: 'Blog Link', published: 'Published', comments: 'Notes', actions: ''
+    link: 'Blog Link', published: 'Published', created_at: 'Created', comments: 'Notes', actions: ''
   }
   const contentSortFields = {
     week: 'week',
@@ -1725,6 +1770,7 @@ function ClientDetailPageContent() {
     blog_feedback: 'blog_client_feedback_note',
     link: 'blog_link',
     published: 'published_date',
+    created_at: 'created_at',
     comments: 'comments'
   }
 
@@ -1933,7 +1979,7 @@ function ClientDetailPageContent() {
                       </td>
                     </tr>
                   ) : (
-                    sortedTasks.map(task => <TaskSortableRow key={task?.id} task={task} />)
+                    pagedTasks.map(task => <TaskSortableRow key={task?.id} task={task} />)
                   )}
                 </tbody>
               </table>
@@ -2001,6 +2047,13 @@ function ClientDetailPageContent() {
                 {CONTENT_INTERNAL_APPROVALS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={cInternStatus} onValueChange={v => updateQueryParams({ c_intern_status: v, c_page: 1 })}>
+              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue placeholder="Intern Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any Intern Status</SelectItem>
+                {INTERN_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Select value={cPublished} onValueChange={v => updateQueryParams({ c_published: v, c_page: 1 })}>
               <SelectTrigger className="w-28 h-8 text-xs"><SelectValue placeholder="Published?" /></SelectTrigger>
               <SelectContent>
@@ -2010,12 +2063,12 @@ function ClientDetailPageContent() {
               </SelectContent>
             </Select>
 
-            {(cSearch || cStatus !== 'all' || cWeek || cWriter || cTopic !== 'all' || cInternal !== 'all' || cPublished !== 'all') && (
+            {(cSearch || cStatus !== 'all' || cWeek || cWriter || cTopic !== 'all' || cInternal !== 'all' || cInternStatus !== 'all' || cPublished !== 'all') && (
               <button onClick={() => {
                 updateQueryParams({
                   c_status: 'all', c_week: '', c_writer: '',
                   c_topic: 'all', c_internal: 'all', c_client: 'all',
-                  c_published: 'all', c_search: '', c_page: 1
+                  c_intern_status: 'all', c_published: 'all', c_search: '', c_page: 1
                 })
                 setCLocalSearch('')
               }} className="text-xs text-blue-600 hover:text-blue-800 font-medium ml-1">Clear</button>
@@ -2105,9 +2158,14 @@ function ClientDetailPageContent() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
                           <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">{res.category || 'Asset'}</span>
-                          <button onClick={() => deleteResource(res.id)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400 transition-all">
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+                            <button onClick={() => setEditResource({ ...res })} className="p-1 rounded hover:bg-blue-50 text-gray-300 hover:text-blue-400 transition-all">
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <button onClick={() => deleteResource(res.id)} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400 transition-all">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                         <p className="font-semibold text-gray-900 text-sm truncate">{res.name}</p>
                         <p className="text-xs text-gray-400 truncate mt-0.5">
@@ -2150,9 +2208,14 @@ function ClientDetailPageContent() {
                         <p className="text-xs text-gray-400 mt-1">{report.report_date}</p>
                         {report.notes && <p className="text-xs text-gray-500 mt-2">{report.notes}</p>}
                       </div>
-                      <button onClick={() => deleteReport(report.id)} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-0.5">
+                        <button onClick={() => setEditReport({ ...report })} className="p-1 rounded hover:bg-blue-50 text-gray-300 hover:text-blue-400 transition-all">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => deleteReport(report.id)} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400 transition-all">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                     <a href={report.report_url} target="_blank" rel="noopener noreferrer"
                       className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700">
@@ -2204,6 +2267,72 @@ function ClientDetailPageContent() {
               <Button type="submit">Add Resource</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editResource} onOpenChange={o => { if (!o) setEditResource(null) }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit Resource</DialogTitle></DialogHeader>
+          {editResource && (
+            <form onSubmit={saveEditResource} className="space-y-3">
+              <div>
+                <Label>Name</Label>
+                <Input value={editResource.name} onChange={e => setEditResource(r => ({ ...r, name: e.target.value }))} required className="mt-1" />
+              </div>
+              <div>
+                <Label>Resource URL</Label>
+                <Input value={editResource.url} onChange={e => setEditResource(r => ({ ...r, url: e.target.value }))} required className="mt-1" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Type</Label>
+                  <Select value={editResource.type} onValueChange={v => setEditResource(r => ({ ...r, type: v }))}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {['link', 'image', 'video', 'folder'].map(t => <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Category</Label>
+                  <Select value={editResource.category} onValueChange={v => setEditResource(r => ({ ...r, category: v }))}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {['Assets', 'Branding', 'Media Library', 'Other'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditResource(null)}>Cancel</Button>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editReport} onOpenChange={o => { if (!o) setEditReport(null) }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit Report</DialogTitle></DialogHeader>
+          {editReport && (
+            <form onSubmit={saveEditReport} className="space-y-3">
+              <div><Label>Title</Label><Input value={editReport.title} onChange={e => setEditReport(r => ({ ...r, title: e.target.value }))} required className="mt-1" /></div>
+              <div><Label>Type</Label>
+                <Select value={editReport.report_type} onValueChange={v => setEditReport(r => ({ ...r, report_type: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>{REPORT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div><Label>Report URL</Label><Input value={editReport.report_url} onChange={e => setEditReport(r => ({ ...r, report_url: e.target.value }))} required className="mt-1" /></div>
+              <div><Label>Date</Label><Input type="date" value={editReport.report_date || ''} onChange={e => setEditReport(r => ({ ...r, report_date: e.target.value }))} className="mt-1" /></div>
+              <div><Label>Notes</Label><Input value={editReport.notes || ''} onChange={e => setEditReport(r => ({ ...r, notes: e.target.value }))} placeholder="Optional" className="mt-1" /></div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditReport(null)}>Cancel</Button>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 

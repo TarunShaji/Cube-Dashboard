@@ -22,6 +22,7 @@ export async function GET(request) {
         const blogStatus = url.searchParams.get('blog_status')
         const internalApproval = url.searchParams.get('internal_approval')
         const clientApproval = url.searchParams.get('client_approval')
+        const internStatus = url.searchParams.get('intern_status')
         const published = url.searchParams.get('published') // 'yes' or 'no'
         const search = url.searchParams.get('search')
         const enrich = url.searchParams.get('enrich') !== '0'
@@ -38,6 +39,7 @@ export async function GET(request) {
         if (blogStatus) query.blog_status = blogStatus
         if (internalApproval) query.blog_internal_approval = internalApproval
         if (clientApproval) query.blog_approval_status = clientApproval
+        if (internStatus) query.intern_status = internStatus
         if (published) {
             query.published_date = published === 'yes' ? { $exists: true, $ne: null } : { $in: [null, ""] }
         }

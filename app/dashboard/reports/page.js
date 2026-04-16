@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Card, CardContent } from '@/components/ui/card'
-import { Plus, ExternalLink, Trash2 } from 'lucide-react'
+import { Plus, ExternalLink, Trash2, Pencil } from 'lucide-react'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { Pagination } from '@/components/shared/Pagination'
 
@@ -31,6 +31,7 @@ function ReportsPageContent() {
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ title: '', client_id: '', report_type: 'Monthly SEO Report', report_url: '', report_date: '', notes: '' })
+  const [editingReport, setEditingReport] = useState(null)
   const [confirmConfig, setConfirmConfig] = useState(null)
 
   const loadClients = async () => {
@@ -70,6 +71,14 @@ function ReportsPageContent() {
     if (res.ok) loadData()
     setShowAdd(false)
     setForm({ title: '', client_id: '', report_type: 'Monthly SEO Report', report_url: '', report_date: '', notes: '' })
+  }
+
+  const updateReport = async (e) => {
+    e.preventDefault()
+    const { id, title, report_type, report_url, report_date, notes } = editingReport
+    await apiFetch(`/api/reports/${id}`, { method: 'PUT', body: JSON.stringify({ title, report_type, report_url, report_date, notes }) })
+    setEditingReport(null)
+    loadData()
   }
 
   const deleteReport = (id) => {
@@ -123,9 +132,14 @@ function ReportsPageContent() {
                     <p className="text-xs text-gray-400 mt-1">{report.report_date}</p>
                     {report.notes && <p className="text-xs text-gray-500 mt-2">{report.notes}</p>}
                   </div>
-                  <button onClick={() => deleteReport(report.id)} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400 flex-shrink-0">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-0.5 flex-shrink-0">
+                    <button onClick={() => setEditingReport({ ...report })} className="p-1 rounded hover:bg-blue-50 text-gray-300 hover:text-blue-400 transition-all">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => deleteReport(report.id)} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400 transition-all">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
                 <a href={report.report_url} target="_blank" rel="noopener noreferrer"
                   className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700">
@@ -182,6 +196,42 @@ function ReportsPageContent() {
               <Button type="submit">Add Report</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!editingReport} onOpenChange={o => { if (!o) setEditingReport(null) }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit Report</DialogTitle></DialogHeader>
+          {editingReport && (
+            <form onSubmit={updateReport} className="space-y-3">
+              <div>
+                <label className="text-sm font-medium">Title</label>
+                <Input value={editingReport.title} onChange={e => setEditingReport(r => ({ ...r, title: e.target.value }))} required className="mt-1" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Type</label>
+                <Select value={editingReport.report_type} onValueChange={v => setEditingReport(r => ({ ...r, report_type: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>{REPORT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Report URL</label>
+                <Input value={editingReport.report_url} onChange={e => setEditingReport(r => ({ ...r, report_url: e.target.value }))} required className="mt-1" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Date</label>
+                <Input type="date" value={editingReport.report_date || ''} onChange={e => setEditingReport(r => ({ ...r, report_date: e.target.value }))} className="mt-1" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Notes</label>
+                <Input value={editingReport.notes || ''} onChange={e => setEditingReport(r => ({ ...r, notes: e.target.value }))} className="mt-1" placeholder="Optional" />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditingReport(null)}>Cancel</Button>
+                <Button type="submit">Save Changes</Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
       <ConfirmDialog config={confirmConfig} onClose={() => setConfirmConfig(null)} />
