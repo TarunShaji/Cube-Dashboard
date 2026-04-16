@@ -17,52 +17,35 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { EditableCell } from '@/components/table/EditableCell'
 import { LinkCell } from '@/components/table/LinkCell'
-import { Plus, ExternalLink, Trash2, Link2, Settings, BarChart3, FileText, GripVertical, GripHorizontal, Folder, Image, Library, Search, Mail, TrendingUp, FolderOpen, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Plus, ExternalLink, Trash2, Link2, Settings, BarChart3, FileText, Folder, Image, Library, Search, Mail, TrendingUp, FolderOpen, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  horizontalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { restrictToHorizontalAxis, restrictToVerticalAxis } from '@dnd-kit/modifiers'
-import {
   STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, CONTENT_INTERNAL_APPROVALS, REPORT_TYPES, SERVICE_TYPES,
-  SOCIAL_STATUSES, SOCIAL_INTERNAL_APPROVALS,
+  SOCIAL_STATUSES, SOCIAL_INTERNAL_APPROVALS, CONTENT_PRIORITIES,
   OUTLINE_STATUSES, TOPIC_APPROVALS, BLOG_APPROVALS, BLOG_STATUSES, INTERN_STATUSES,
   statusColors, priorityColors, approvalColors, topicApprovalColors, blogStatusColors, internalApprovalColors, internStatusColors, socialInternalApprovalColors,
-  TASK_COLUMN_WIDTHS, CONTENT_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS, SOCIAL_COLUMN_WIDTHS, SOCIAL_FORMATS, STATUS_ORDER
+  TASK_COLUMN_WIDTHS, CONTENT_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS, SOCIAL_COLUMN_WIDTHS, SOCIAL_FORMATS, STATUS_ORDER, TEAM_LABELS
 } from '@/lib/constants'
 
 // Shared components imported from @/components/
 
 /** CommentsModal — expands task description/comments in a large textarea dialog */
-function CommentsModal({ taskId, value, onClose, onSave }) {
-  const [localComment, setLocalComment] = useState(value)
+function CommentsModal({ taskId, value, label, onClose, onSave }) {
+  const [localComment, setLocalComment] = useState(value || '')
+  const title = label || 'Task Description'
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Task Description / Comments</DialogTitle>
-          <DialogDescription>Add or edit a description for this task. Ctrl+Enter to save quickly.</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>Add or edit text. Ctrl+Enter to save quickly.</DialogDescription>
         </DialogHeader>
         <textarea
           autoFocus
           value={localComment}
           onChange={e => setLocalComment(e.target.value)}
-          rows={10}
-          placeholder="Write a description, notes, or comments about this task..."
+          rows={title === 'Blog Title' ? 4 : 10}
+          placeholder={`Write ${title.toLowerCase()}...`}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y"
           onKeyDown={e => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { onSave(localComment || null); onClose() }
@@ -476,28 +459,28 @@ function ClientDetailPageContent() {
         return {
           endpoint: '/api/email-tasks',
           label: 'Email Tasks',
-          columns: ['selection', 'title', 'comments', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'campaign_live', 'live_data', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['selection', 'title', 'comments', 'status', 'team_label', 'assigned', 'started_date', 'link', 'internal_approval', 'send_link', 'campaign_live', 'live_data', 'client_approval', 'client_feedback', 'actions'],
           widths: EMAIL_COLUMN_WIDTHS
         }
       case 'paid':
         return {
           endpoint: '/api/paid-tasks',
           label: 'Paid Ads Tasks',
-          columns: ['selection', 'title', 'comments', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['selection', 'title', 'comments', 'status', 'team_label', 'assigned', 'started_date', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
           widths: PAID_COLUMN_WIDTHS
         }
       case 'social':
         return {
           endpoint: '/api/social-tasks',
           label: 'Social Media Tasks',
-          columns: ['selection', 'format', 'reference', 'visual_brief', 'content', 'caption', 'social_internal_approval', 'send_idea', 'content_idea_approval', 'content_idea_feedback', 'content_draft', 'send_draft', 'content_draft_approval', 'draft_feedback', 'live_link', 'posting_date', 'social_status', 'assigned', 'comments', 'actions'],
+          columns: ['selection', 'format', 'reference', 'visual_brief', 'content', 'caption', 'social_internal_approval', 'send_idea', 'content_idea_approval', 'content_idea_feedback', 'content_draft', 'send_draft', 'content_draft_approval', 'draft_feedback', 'live_link', 'posting_date', 'social_status', 'team_label', 'assigned', 'started_date', 'comments', 'actions'],
           widths: SOCIAL_COLUMN_WIDTHS
         }
       default:
         return {
           endpoint: '/api/tasks',
           label: 'SEO Tasks',
-          columns: ['selection', 'title', 'comments', 'category', 'status', 'priority', 'eta', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['selection', 'title', 'comments', 'comments_for_client', 'category', 'status', 'priority', 'eta', 'team_label', 'assigned', 'started_date', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
           widths: TASK_COLUMN_WIDTHS
         }
     }
@@ -567,7 +550,8 @@ function ClientDetailPageContent() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (tLocalSearch !== tSearch) {
-        updateQueryParams({ search: tLocalSearch })
+        // Reset to page 1 when search changes so we always show results from the start
+        updateQueryParams({ search: tLocalSearch, page: 1 })
       }
     }, 300)
     return () => clearTimeout(timer)
@@ -577,7 +561,8 @@ function ClientDetailPageContent() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (cLocalSearch !== cSearch) {
-        updateQueryParams({ c_search: cLocalSearch })
+        // Reset to c_page 1 when content search changes
+        updateQueryParams({ c_search: cLocalSearch, c_page: 1 })
       }
     }, 300)
     return () => clearTimeout(timer)
@@ -627,15 +612,18 @@ function ClientDetailPageContent() {
     // Always nuke old stale orders
     localStorage.removeItem('client_content_col_order_v2')
     localStorage.removeItem('client_content_col_order_v3')
+    localStorage.removeItem('client_content_col_order_v4')
+    localStorage.removeItem('client_content_col_order_v5')
 
-    const savedContent = localStorage.getItem('client_content_col_order_v4')
+    const savedContent = localStorage.getItem('client_content_col_order_v6')
     const parsedContent = safeJSON(savedContent)
     const defaultContentCols = [
-      'selection', 'week', 'title', 'primary_keyword', 'secondary_keyword', 'writer',
-      'outline', 'intern_status', 'search_volume',
-      'topic_approval', 'blog_status', 'blog_doc',
-      'blog_internal_approval', 'send_link', 'date_sent', 'blog_approval', 'approved_on', 'blog_feedback',
-      'link', 'required_by', 'published', 'comments', 'actions'
+      'selection', 'week', 'title', 'primary_keyword', 'search_volume', 'secondary_keyword',
+      'topic_approval', 'content_priority', 'required_by',
+      'writer', 'outline', 'intern_status',
+      'blog_doc', 'blog_internal_approval', 'blog_status',
+      'send_link', 'date_sent', 'blog_approval', 'approved_on', 'blog_feedback',
+      'link', 'published', 'comments', 'actions'
     ]
     if (parsedContent && Array.isArray(parsedContent)) {
       const cols = parsedContent.filter(c => c !== 'client')
@@ -1141,6 +1129,17 @@ function ClientDetailPageContent() {
 
   const sortedTasks = useMemo(() => {
     if (taskSortConfig.field) return sortRows(allTasks, taskSortConfig, getTaskSortableValue)
+    // Social media default: ascending by posting_date, Posted tasks pinned to bottom
+    if (tService === 'social') {
+      return [...allTasks].sort((a, b) => {
+        const aPosted = a?.status === 'Posted' ? 1 : 0
+        const bPosted = b?.status === 'Posted' ? 1 : 0
+        if (aPosted !== bPosted) return aPosted - bPosted
+        const aDate = a?.posting_date ? new Date(a.posting_date).getTime() : Infinity
+        const bDate = b?.posting_date ? new Date(b.posting_date).getTime() : Infinity
+        return aDate - bDate
+      })
+    }
     // Default order when no column sort is active: Completed → In Progress → To Be Started → Implemented → Blocked → others
     return [...allTasks].sort((a, b) => {
       const ai = STATUS_ORDER.indexOf(a?.status || '')
@@ -1149,7 +1148,7 @@ function ClientDetailPageContent() {
       const bIdx = bi === -1 ? STATUS_ORDER.length : bi
       return aIdx - bIdx
     })
-  }, [allTasks, taskSortConfig, memberMap])
+  }, [allTasks, taskSortConfig, memberMap, tService])
   const sortedContent = useMemo(() => {
     if (contentSortConfig.field) return sortRows(allContent, contentSortConfig, getContentSortableValue)
     return [...allContent].sort((a, b) => {
@@ -1164,81 +1163,6 @@ function ClientDetailPageContent() {
   const approvalCount = useMemo(() => allTasks.filter(t => t?.client_approval === 'Approved').length, [allTasks])
   const changesCount = useMemo(() => allTasks.filter(t => t?.client_approval === 'Required Changes' || t?.client_approval === 'Changes Required').length, [allTasks])
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  )
-
-  const handleTaskRowDragEnd = async (event) => {
-    if (taskSortConfig.field) return
-    const { active, over } = event
-    if (!over) return
-    if (active.id !== over.id) {
-      const oldIndex = allTasks.findIndex((t) => t.id === active.id)
-      const newIndex = allTasks.findIndex((t) => t.id === over.id)
-      const reordered = arrayMove(allTasks, oldIndex, newIndex)
-      mutateTasks({ ...tasks, data: reordered }, false)
-
-      try {
-        const reorderUrl = tService === 'seo' ? '/api/tasks/reorder' : `${serviceConfig.endpoint}/reorder`
-        await apiFetch(reorderUrl, {
-          method: 'PUT',
-          body: JSON.stringify({ ids: reordered.map(t => t.id) })
-        })
-      } catch (e) {
-        console.error('Failed to persist task order', e)
-        mutateTasks()
-      }
-    }
-  }
-
-  const handleTaskColDragEnd = (event) => {
-    const { active, over } = event
-    if (active.id !== over.id) {
-      setTaskColOrder((items) => {
-        const oldIndex = items.indexOf(active.id)
-        const newIndex = items.indexOf(over.id)
-        const updated = arrayMove(items, oldIndex, newIndex)
-        localStorage.setItem(`client_tasks_col_order_${tService}`, JSON.stringify(updated))
-        return updated
-      })
-    }
-  }
-
-  const handleContentRowDragEnd = async (event) => {
-    if (contentSortConfig.field) return
-    const { active, over } = event
-    if (!over) return
-    if (active.id !== over.id) {
-      const oldIndex = allContent.findIndex((c) => c.id === active.id)
-      const newIndex = allContent.findIndex((c) => c.id === over.id)
-      const reordered = arrayMove(allContent, oldIndex, newIndex)
-      mutateContent({ ...content, data: reordered }, false)
-
-      try {
-        await apiFetch('/api/content/reorder', {
-          method: 'PUT',
-          body: JSON.stringify({ ids: reordered.map(c => c.id) })
-        })
-      } catch (e) {
-        console.error('Failed to persist content order', e)
-        mutateContent()
-      }
-    }
-  }
-
-  const handleContentColDragEnd = (event) => {
-    const { active, over } = event
-    if (active.id !== over.id) {
-      setContentColOrder((items) => {
-        const oldIndex = items.indexOf(active.id)
-        const newIndex = items.indexOf(over.id)
-        const updated = arrayMove(items, oldIndex, newIndex)
-        localStorage.setItem('client_content_col_order_v3', JSON.stringify(updated))
-        return updated
-      })
-    }
-  }
 
   const handleSort = (field, type = 'task') => {
     if (!field) return
@@ -1256,7 +1180,6 @@ function ClientDetailPageContent() {
 
   // --- Sortable Components ---
   const SortableHeader = ({ id, label, sortField: sField, type = 'task' }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: id || 'header' })
     const widths = type === 'task' ? serviceConfig.widths : CONTENT_COLUMN_WIDTHS
     const isContent = type === 'content'
     const isSticky = (isContent && (id === 'title' || id === 'week' || id === 'serial')) || (!isContent && (id === 'title' || id === 'serial' || id === 'selection'))
@@ -1270,9 +1193,6 @@ function ClientDetailPageContent() {
     const currentWidth = id === 'serial' ? '40px' : (widths[id] || 'auto')
 
     const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      zIndex: isDragging ? 30 : (isSticky ? 20 : 0),
       width: currentWidth,
       minWidth: currentWidth,
       ...(isSticky ? { position: 'sticky', left: leftPos, background: '#f9fafb', zIndex: 25, borderRight: '1px solid #f3f4f6', boxShadow: id === 'title' ? '4px 0 8px -4px rgba(0,0,0,0.1)' : '' } : {})
@@ -1284,8 +1204,8 @@ function ClientDetailPageContent() {
     const toggleAll = isTask ? toggleAllTasks : toggleAllContent
 
     return (
-      <th ref={setNodeRef} style={style} className={`text-left px-3 py-2.5 font-semibold text-gray-600 bg-gray-50 border-r border-gray-100 last:border-0 ${isDragging ? 'opacity-50' : ''}`}>
-        <div className="flex items-center gap-2 overflow-hidden">
+      <th style={style} className="text-left px-3 py-2.5 font-semibold text-gray-600 bg-gray-50 border-r border-gray-100 last:border-0">
+        <div className="flex items-center gap-1 overflow-hidden">
           {id === 'selection' ? (
             <input
               type="checkbox"
@@ -1294,41 +1214,38 @@ function ClientDetailPageContent() {
               onChange={toggleAll}
             />
           ) : (
-            <div {...attributes} {...listeners} className="cursor-grab hover:text-blue-500 flex-shrink-0">
-              <GripHorizontal className="w-3 h-3" />
-            </div>
+            <button
+              type="button"
+              onClick={() => handleSort(sField, type)}
+              className={`truncate inline-flex items-center gap-1 ${sField ? 'cursor-pointer hover:text-gray-900' : 'cursor-default'}`}
+              title={label}
+              disabled={!sField}
+            >
+              <span className="truncate">{label}</span>
+              {sField && (
+                (type === 'task' ? taskSortConfig.field : contentSortConfig.field) === sField
+                  ? ((type === 'task' ? taskSortConfig.direction : contentSortConfig.direction) === 'asc'
+                    ? <ArrowUp className="w-3 h-3 flex-shrink-0" />
+                    : <ArrowDown className="w-3 h-3 flex-shrink-0" />)
+                  : <ArrowUpDown className="w-3 h-3 flex-shrink-0 text-gray-400" />
+              )}
+            </button>
           )}
-          <button
-            type="button"
-            onClick={() => handleSort(sField, type)}
-            className={`truncate inline-flex items-center gap-1 ${sField ? 'cursor-pointer hover:text-gray-900' : 'cursor-default'}`}
-            title={label}
-            disabled={!sField}
-          >
-            <span className="truncate">{label}</span>
-            {sField && (
-              (type === 'task' ? taskSortConfig.field : contentSortConfig.field) === sField
-                ? ((type === 'task' ? taskSortConfig.direction : contentSortConfig.direction) === 'asc'
-                  ? <ArrowUp className="w-3 h-3 flex-shrink-0" />
-                  : <ArrowDown className="w-3 h-3 flex-shrink-0" />)
-                : <ArrowUpDown className="w-3 h-3 flex-shrink-0 text-gray-400" />
-            )}
-          </button>
         </div>
       </th>
     )
   }
 
   const TaskSortableRow = ({ task }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task?.id || 'unknown' })
     if (!task?.id) return null
-    const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 40 : 10 }
+    // Serial number accounts for pagination offset
+    const serialNum = (tPagination.page - 1) * 50 + sortedTasks.findIndex(t => t.id === task.id) + 1
 
     return (
-      <tr ref={setNodeRef} style={style} className={`hover:bg-gray-50 group border-b border-gray-100 ${isDragging ? 'opacity-50 shadow-lg' : ''}`}>
+      <tr className="hover:bg-gray-50 group border-b border-gray-100">
         <td className="px-2 py-1.5 text-center text-gray-400 font-mono text-[11px] bg-gray-50/50 border-r border-gray-100 select-none"
           style={{ width: '40px', minWidth: '40px', position: 'sticky', left: 0, zIndex: 20 }}>
-          {sortedTasks.findIndex(t => t.id === task.id) + 1}
+          {serialNum}
         </td>
         {safeArray(taskColOrder).map(colId => {
           const isTaskSticky = colId === 'title' || colId === 'selection'
@@ -1358,11 +1275,6 @@ function ClientDetailPageContent() {
               {
                 colId === 'title' && (
                   <div className="flex items-center gap-2">
-                    {!taskSortConfig.field && (
-                      <div {...attributes} {...listeners} className="cursor-grab text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                        <GripVertical className="w-3 h-3" />
-                      </div>
-                    )}
                     {saving[task.id] && <div className="w-1 h-1 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />}
                     <EditableCell value={task.title} onSave={v => updateTask(task.id, 'title', v)} />
                   </div>
@@ -1372,6 +1284,8 @@ function ClientDetailPageContent() {
               {colId === 'status' && <EditableCell value={task.status} type="status" options={STATUSES} onSave={v => updateTask(task.id, 'status', v)} />}
               {colId === 'priority' && <EditableCell value={task.priority} type="priority" options={PRIORITIES} onSave={v => updateTask(task.id, 'priority', v)} />}
               {colId === 'eta' && <EditableCell value={task.eta_end} type="date" onSave={v => updateTask(task.id, 'eta_end', v)} />}
+              {colId === 'started_date' && <EditableCell value={task.started_date} type="date" onSave={v => updateTask(task.id, 'started_date', v)} />}
+              {colId === 'team_label' && <EditableCell value={task.team_label} type="select" options={TEAM_LABELS} onSave={v => updateTask(task.id, 'team_label', v)} />}
               {
                 colId === 'assigned' && (
                   <AssigneeCell
@@ -1538,12 +1452,23 @@ function ClientDetailPageContent() {
               {colId === 'comments' && (
                 <div
                   className="cursor-pointer px-1 py-0.5 rounded hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 transition-all min-h-[24px] max-w-[200px]"
-                  onClick={() => setCommentsModal({ taskId: task.id, value: task.comments || '' })}
-                  title={task.comments || 'Click to add description'}
+                  onClick={() => setCommentsModal({ taskId: task.id, value: task.comments || '', field: 'comments', label: 'Task Description' })}
+                  title={task.comments || 'Click to add task description'}
                 >
                   {task.comments
                     ? <span className="text-xs text-gray-600 truncate block">{task.comments}</span>
                     : <span className="text-gray-300 text-xs">Add description...</span>}
+                </div>
+              )}
+              {colId === 'comments_for_client' && (
+                <div
+                  className="cursor-pointer px-1 py-0.5 rounded hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 transition-all min-h-[24px] max-w-[200px]"
+                  onClick={() => setCommentsModal({ taskId: task.id, value: task.comments_for_client || '', field: 'comments_for_client', label: 'Comments for Client' })}
+                  title={task.comments_for_client || 'Click to add comment for client'}
+                >
+                  {task.comments_for_client
+                    ? <span className="text-xs text-gray-600 truncate block">{task.comments_for_client}</span>
+                    : <span className="text-gray-300 text-xs">Add comment...</span>}
                 </div>
               )}
               {colId === 'actions' && (
@@ -1559,12 +1484,10 @@ function ClientDetailPageContent() {
   }
 
   const ContentSortableRow = ({ item }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item?.id || 'unknown' })
     if (!item?.id) return null
-    const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 40 : 10 }
     const rowIndex = sortedContent.findIndex(i => i.id === item.id)
     return (
-      <tr ref={setNodeRef} style={style} className={`hover:bg-gray-50 group border-b border-gray-100 ${isDragging ? 'opacity-50 shadow-lg' : ''}`}>
+      <tr className="hover:bg-gray-50 group border-b border-gray-100">
         <td className="px-2 py-1.5 text-center text-gray-400 font-mono text-[11px] bg-white border-r border-gray-100 select-none"
           style={{ width: '40px', minWidth: '40px', position: 'sticky', left: 0, background: '#fff', zIndex: 20 }}>
           {rowIndex + 1}
@@ -1588,15 +1511,18 @@ function ClientDetailPageContent() {
               )}
               {colId === 'week' && (
                 <div className="flex items-center gap-2">
-                  {!contentSortConfig.field && (
-                    <div {...attributes} {...listeners} className="cursor-grab text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                      <GripVertical className="w-3 h-3" />
-                    </div>
-                  )}
                   <EditableCell value={item.week} onSave={v => updateContent(item.id, 'week', v)} placeholder="W1" />
                 </div>
               )}
-              {colId === 'title' && <EditableCell value={item.blog_title} onSave={v => updateContent(item.id, 'blog_title', v)} />}
+              {colId === 'title' && (
+                <div
+                  className="cursor-pointer px-1 py-0.5 rounded hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 transition-all min-h-[24px] w-full"
+                  onClick={() => setCommentsModal({ taskId: `content_title_${item.id}`, value: item.blog_title || '', field: '__blog_title__', label: 'Blog Title', isContent: true, contentId: item.id })}
+                  title={item.blog_title || 'Click to view/edit title'}
+                >
+                  <span className="text-xs text-gray-700 truncate block">{item.blog_title || <span className="text-gray-300">—</span>}</span>
+                </div>
+              )}
               {colId === 'primary_keyword' && <EditableCell value={item.primary_keyword} onSave={v => updateContent(item.id, 'primary_keyword', v)} placeholder="Primary Keyword" />}
               {colId === 'secondary_keyword' && <EditableCell value={item.secondary_keywords} onSave={v => updateContent(item.id, 'secondary_keywords', v)} placeholder="Secondary Keyword" />}
               {colId === 'writer' && <EditableCell value={item.writer} onSave={v => updateContent(item.id, 'writer', v)} placeholder="Writer" />}
@@ -1621,6 +1547,14 @@ function ClientDetailPageContent() {
                   onSave={v => updateContent(item.id, 'topic_approval_status', v)}
                 />
               )}
+              {colId === 'content_priority' && (
+                <EditableCell
+                  value={item.content_priority}
+                  type="priority"
+                  options={CONTENT_PRIORITIES}
+                  onSave={v => updateContent(item.id, 'content_priority', v || null)}
+                />
+              )}
               {colId === 'blog_status' && (
                 <EditableCell
                   value={item.blog_status || 'Draft'}
@@ -1639,19 +1573,42 @@ function ClientDetailPageContent() {
                 />
               )}
               {colId === 'send_link' && (
-                <Button
-                  size="sm"
-                  variant={item.client_link_visible_blog ? 'ghost' : 'default'}
-                  className={`h-7 px-2 text-[10px] uppercase tracking-wider font-bold ${item.client_link_visible_blog ? 'text-green-600' : ''}`}
-                  disabled={
-                    item.blog_internal_approval !== 'Approved' ||
-                    !item.blog_doc_link ||
-                    item.client_link_visible_blog === true
-                  }
-                  onClick={() => publishContent(item.id)}
-                >
-                  {item.client_link_visible_blog ? 'Sent' : 'Send Link'}
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant={item.client_link_visible_blog ? 'ghost' : 'default'}
+                    className={`h-7 px-2 text-[10px] uppercase tracking-wider font-bold ${item.client_link_visible_blog ? 'text-green-600 cursor-default' : ''}`}
+                    disabled={
+                      item.blog_internal_approval !== 'Approved' ||
+                      !item.blog_doc_link ||
+                      item.client_link_visible_blog === true
+                    }
+                    onClick={() => setConfirmConfig({
+                      title: 'Send to Client Portal',
+                      description: 'This will make the blog document visible to the client on their portal. Please confirm before proceeding.',
+                      onConfirm: () => publishContent(item.id),
+                      confirmText: 'Send to Client',
+                      confirmClass: 'bg-blue-600 hover:bg-blue-700 text-white'
+                    })}
+                  >
+                    {item.client_link_visible_blog ? 'Sent' : 'Send Link'}
+                  </Button>
+                  {item.client_link_visible_blog && (
+                    <button
+                      title="Unsend — remove from client portal"
+                      className="h-7 px-1.5 text-[10px] text-gray-400 hover:text-red-500 hover:bg-red-50 rounded border border-transparent hover:border-red-100 transition-all"
+                      onClick={() => setConfirmConfig({
+                        title: 'Unsend from Client Portal',
+                        description: 'This will hide the blog document from the client portal. The client will no longer be able to view or approve it until you send it again.',
+                        onConfirm: () => updateContent(item.id, 'client_link_visible_blog', false),
+                        confirmText: 'Unsend',
+                        confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
+                      })}
+                    >
+                      Unsend
+                    </button>
+                  )}
+                </div>
               )}
               {colId === 'blog_approval' && (
                 <EditableCell value={item.blog_approval_status || 'Pending Review'} type="blog_approval" disabled={true} />
@@ -1696,10 +1653,11 @@ function ClientDetailPageContent() {
   const taskColLabels = {
     selection: '',
     title: 'Task', category: 'Category', status: 'Status', priority: 'Priority',
-    eta: 'ETA End', assigned: 'Assigned', link: 'Link', internal_approval: 'Internal Approval',
+    eta: 'ETA End', started_date: 'Start Date', team_label: 'Team', assigned: 'Assigned', link: 'Link', internal_approval: 'Internal Approval',
     campaign_live: 'Campaign Live', live_data: 'Live Data',
     live_link: 'Live Link', live_date: 'Live Date',
-    send_link: 'Send Link', client_approval: 'Client Approval', client_feedback: 'Feedback', comments: 'Comments', actions: '',
+    send_link: 'Send Link', client_approval: 'Client Approval', client_feedback: 'Feedback',
+    comments: 'Task Description', comments_for_client: 'Comments', actions: '',
     // Social
     format: 'Format', social_status: 'Status', reference: 'Reference', visual_brief: 'Visual Brief', content: 'Content', caption: 'Caption',
     send_idea: 'Send Idea', content_idea_approval: 'Idea Approval', content_idea_feedback: 'Idea Feedback',
@@ -1712,6 +1670,8 @@ function ClientDetailPageContent() {
     status: 'status',
     priority: 'priority',
     eta: 'eta_end',
+    started_date: 'started_date',
+    team_label: 'team_label',
     assigned: 'assigned_name',
     link: 'link_url',
     live_link: 'live_link',
@@ -1722,6 +1682,7 @@ function ClientDetailPageContent() {
     client_approval: 'client_approval',
     client_feedback: 'client_feedback_note',
     comments: 'comments',
+    comments_for_client: 'comments_for_client',
     // Social
     format: 'format',
     social_status: 'status',
@@ -1737,7 +1698,7 @@ function ClientDetailPageContent() {
     primary_keyword: 'Primary Keyword', secondary_keyword: 'Secondary Keyword',
     writer: 'Writer', search_volume: 'Search Vol.', outline: 'Outline',
     intern_status: 'Intern Status', required_by: 'Required By',
-    topic_approval: 'Topic Approval', blog_status: 'Blog Status',
+    content_priority: 'Priority', topic_approval: 'Topic Approval', blog_status: 'Blog Status',
     blog_doc: 'Blog Doc', blog_internal_approval: 'Internal Approval', send_link: 'Send Link',
     date_sent: 'Sent For Appr.',
     blog_approval: 'Client Approval', approved_on: 'Approved On', blog_feedback: 'Feedback',
@@ -1799,7 +1760,7 @@ function ClientDetailPageContent() {
             Timeline Tracker
           </TabsTrigger>
           <TabsTrigger value="content" className="gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-gray-200 hover:text-gray-700">
-            <FileText className="w-4 h-4" /> Content Calendar ({allContent.length})
+            <FileText className="w-4 h-4" /> Content Calendar ({cPagination.total})
           </TabsTrigger>
           <TabsTrigger value="resources" className="gap-2 px-6 py-2.5 rounded-lg font-bold text-gray-500 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-gray-200 hover:text-gray-700">
             <FolderOpen className="w-4 h-4" /> Resources
@@ -1954,41 +1915,32 @@ function ClientDetailPageContent() {
               </Button>
             )}
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg overflow-auto shadow-sm">
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleTaskColDragEnd} modifiers={[restrictToHorizontalAxis]}>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleTaskRowDragEnd} modifiers={[restrictToVerticalAxis]}>
-                <table className="w-full text-sm" style={{ minWidth: '1800px', tableLayout: 'fixed' }}>
-                  <thead className="sticky top-0 z-30">
-                    <SortableContext items={taskColOrder} strategy={horizontalListSortingStrategy}>
-                      <tr className="border-b border-gray-100 bg-gray-50/80">
-                        <th className="px-2 py-2.5 text-center text-gray-400 font-semibold bg-gray-50 border-r border-gray-100" style={{ width: '40px', minWidth: '40px' }}>#</th>
-                        {safeArray(taskColOrder).map(colId => (
-                          <SortableHeader key={colId} id={colId} label={taskColLabels[colId]} sortField={taskSortFields[colId]} type="task" />
-                        ))}
-                      </tr>
-                    </SortableContext>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {sortedTasks.length === 0 ? (
-                      <tr>
-                        <td colSpan={taskColOrder.length} className="px-4 py-16 text-center text-gray-400">
-                          No tasks yet. Add your first task below.
-                        </td>
-                      </tr>
-                    ) : (
-                      <SortableContext items={sortedTasks.map(t => t?.id)} strategy={verticalListSortingStrategy}>
-                        {sortedTasks.map(task => <TaskSortableRow key={task?.id} task={task} />)}
-                      </SortableContext>
-                    )}
-                  </tbody>
-                </table>
-              </DndContext>
-            </DndContext>
+          <div className="bg-white border border-gray-200 rounded-lg overflow-auto shadow-sm" style={{ maxHeight: 'calc(100vh - 320px)' }}>
+              <table className="w-full text-sm" style={{ minWidth: '1800px', tableLayout: 'fixed' }}>
+                <thead className="sticky top-0 z-30 bg-gray-50">
+                    <tr className="border-b border-gray-100 bg-gray-50/80">
+                      <th className="px-2 py-2.5 text-center text-gray-400 font-semibold bg-gray-50 border-r border-gray-100" style={{ width: '40px', minWidth: '40px' }}>#</th>
+                      {safeArray(taskColOrder).map(colId => (
+                        <SortableHeader key={colId} id={colId} label={taskColLabels[colId]} sortField={taskSortFields[colId]} type="task" />
+                      ))}
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {sortedTasks.length === 0 ? (
+                    <tr>
+                      <td colSpan={taskColOrder.length} className="px-4 py-16 text-center text-gray-400">
+                        No tasks yet. Add your first task below.
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedTasks.map(task => <TaskSortableRow key={task?.id} task={task} />)
+                  )}
+                </tbody>
+              </table>
           </div>
 
           <div className="mt-4 flex items-center justify-between">
             <div className="text-xs text-gray-400">
-              Drag headers to reorder columns
             </div>
             <Pagination
               total={tPagination.total}
@@ -2085,47 +2037,38 @@ function ClientDetailPageContent() {
             )}
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg overflow-auto shadow-sm">
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleContentColDragEnd} modifiers={[restrictToHorizontalAxis]}>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleContentRowDragEnd} modifiers={[restrictToVerticalAxis]}>
-                <table className="w-full text-sm" style={{ minWidth: '2000px', tableLayout: 'fixed' }}>
-                  <thead className="sticky top-0 z-30">
-                    <SortableContext items={contentColOrder} strategy={horizontalListSortingStrategy}>
-                      <tr className="border-b border-gray-100 bg-gray-50/80">
-                        <th className="px-2 py-2.5 text-center text-gray-400 font-semibold bg-gray-50 border-r border-gray-100"
-                          style={{ width: '40px', minWidth: '40px', position: 'sticky', left: 0, zIndex: 15 }}>
-                          #
-                        </th>
-                        {safeArray(contentColOrder).map(colId => (
-                          <SortableHeader key={colId} id={colId} label={contentColLabels[colId]} sortField={contentSortFields[colId]} type="content" />
-                        ))}
-                      </tr>
-                    </SortableContext>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {sortedContent.length === 0 ? (
-                      <tr>
-                        <td colSpan={contentColOrder.length} className="px-4 py-16 text-center text-gray-400">
-                          <FileText className="w-8 h-8 mx-auto mb-2 text-gray-200" />
-                          No content calendar items yet. Add your first blog post below.
-                        </td>
-                      </tr>
-                    ) : (
-                      <SortableContext items={sortedContent.map(i => i?.id)} strategy={verticalListSortingStrategy}>
-                        {sortedContent.map(item => (
-                          <ContentSortableRow key={item?.id} item={item} />
-                        ))}
-                      </SortableContext>
-                    )}
-                  </tbody>
-                </table>
-              </DndContext>
-            </DndContext>
+          <div className="bg-white border border-gray-200 rounded-lg overflow-auto shadow-sm" style={{ maxHeight: 'calc(100vh - 320px)' }}>
+              <table className="w-full text-sm" style={{ minWidth: '2000px', tableLayout: 'fixed' }}>
+                <thead className="sticky top-0 z-30 bg-gray-50">
+                    <tr className="border-b border-gray-100 bg-gray-50/80">
+                      <th className="px-2 py-2.5 text-center text-gray-400 font-semibold bg-gray-50 border-r border-gray-100"
+                        style={{ width: '40px', minWidth: '40px', position: 'sticky', left: 0, zIndex: 15 }}>
+                        #
+                      </th>
+                      {safeArray(contentColOrder).map(colId => (
+                        <SortableHeader key={colId} id={colId} label={contentColLabels[colId]} sortField={contentSortFields[colId]} type="content" />
+                      ))}
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {sortedContent.length === 0 ? (
+                    <tr>
+                      <td colSpan={contentColOrder.length} className="px-4 py-16 text-center text-gray-400">
+                        <FileText className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+                        No content calendar items yet. Add your first blog post below.
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedContent.map(item => (
+                      <ContentSortableRow key={item?.id} item={item} />
+                    ))
+                  )}
+                </tbody>
+              </table>
           </div>
 
           <div className="mt-4 flex items-center justify-between">
             <div className="text-xs text-gray-400">
-              Drag headers to reorder columns
             </div>
             <Pagination
               total={cPagination.total}
@@ -2350,10 +2293,19 @@ function ClientDetailPageContent() {
 
       {commentsModal && (
         <CommentsModal
+          key={(commentsModal.taskId || '') + '_' + (commentsModal.field || 'comments')}
           taskId={commentsModal.taskId}
           value={commentsModal.value}
+          label={commentsModal.label}
           onClose={() => setCommentsModal(null)}
-          onSave={(val) => updateTask(commentsModal.taskId, 'comments', val)}
+          onSave={(val) => {
+            if (commentsModal.isContent && commentsModal.contentId) {
+              // Blog title save goes to content
+              updateContent(commentsModal.contentId, 'blog_title', val || '')
+            } else {
+              updateTask(commentsModal.taskId, commentsModal.field || 'comments', val)
+            }
+          }}
         />
       )}
       {feedbackModal && (

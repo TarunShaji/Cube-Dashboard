@@ -6,7 +6,7 @@ import { apiFetch } from '@/lib/middleware/auth'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Plus, Trash2, RefreshCw, GripVertical, GripHorizontal, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Plus, Trash2, RefreshCw, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { safeJSON, safeArray } from '@/lib/safe'
 import { EditableCell } from '@/components/table/EditableCell'
@@ -16,41 +16,24 @@ import { Pagination } from '@/components/shared/Pagination'
 import { ClientSwitcher } from '@/components/shared/ClientSwitcher'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, SOCIAL_STATUSES, SOCIAL_INTERNAL_APPROVALS, statusColors, priorityColors, approvalColors, internalApprovalColors, socialInternalApprovalColors, TASK_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS, SOCIAL_COLUMN_WIDTHS, SOCIAL_FORMATS } from '@/lib/constants'
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  horizontalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { restrictToHorizontalAxis, restrictToVerticalAxis } from '@dnd-kit/modifiers'
+import { STATUSES, CATEGORIES, PRIORITIES, APPROVALS, INTERNAL_APPROVALS, SOCIAL_STATUSES, SOCIAL_INTERNAL_APPROVALS, statusColors, priorityColors, approvalColors, internalApprovalColors, socialInternalApprovalColors, TASK_COLUMN_WIDTHS, EMAIL_COLUMN_WIDTHS, PAID_COLUMN_WIDTHS, SOCIAL_COLUMN_WIDTHS, SOCIAL_FORMATS, TEAM_LABELS } from '@/lib/constants'
 
-function CommentsModal({ value, onClose, onSave }) {
+function CommentsModal({ value, label, onClose, onSave }) {
   const [localComment, setLocalComment] = useState(value || '')
+  const title = label || 'Task Description'
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Task Description / Comments</DialogTitle>
-          <DialogDescription>Add or edit a description for this task. Ctrl+Enter to save quickly.</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>Add or edit text. Ctrl+Enter to save quickly.</DialogDescription>
         </DialogHeader>
         <textarea
           autoFocus
           value={localComment}
           onChange={e => setLocalComment(e.target.value)}
           rows={10}
-          placeholder="Write a description, notes, or comments about this task..."
+          placeholder={`Write ${title.toLowerCase()}...`}
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y"
           onKeyDown={e => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { onSave(localComment || null); onClose() }
@@ -455,28 +438,28 @@ function TasksPageContent() {
         return {
           endpoint: '/api/email-tasks',
           label: 'Email Tasks',
-          columns: ['serial', 'selection', 'client', 'title', 'comments', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'campaign_live', 'live_data', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['serial', 'selection', 'client', 'title', 'comments', 'status', 'team_label', 'assigned', 'started_date', 'link', 'internal_approval', 'send_link', 'campaign_live', 'live_data', 'client_approval', 'client_feedback', 'actions'],
           widths: EMAIL_COLUMN_WIDTHS
         }
       case 'paid':
         return {
           endpoint: '/api/paid-tasks',
           label: 'Paid Ads Tasks',
-          columns: ['serial', 'selection', 'client', 'title', 'comments', 'status', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['serial', 'selection', 'client', 'title', 'comments', 'status', 'team_label', 'assigned', 'started_date', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
           widths: PAID_COLUMN_WIDTHS
         }
       case 'social':
         return {
           endpoint: '/api/social-tasks',
           label: 'Social Media Tasks',
-          columns: ['serial', 'selection', 'client', 'format', 'reference', 'visual_brief', 'content', 'caption', 'social_internal_approval', 'send_idea', 'content_idea_approval', 'content_idea_feedback', 'content_draft', 'send_draft', 'content_draft_approval', 'draft_feedback', 'live_link', 'posting_date', 'social_status', 'assigned', 'comments', 'actions'],
+          columns: ['serial', 'selection', 'client', 'format', 'reference', 'visual_brief', 'content', 'caption', 'social_internal_approval', 'send_idea', 'content_idea_approval', 'content_idea_feedback', 'content_draft', 'send_draft', 'content_draft_approval', 'draft_feedback', 'live_link', 'posting_date', 'social_status', 'team_label', 'assigned', 'started_date', 'comments', 'actions'],
           widths: SOCIAL_COLUMN_WIDTHS
         }
       default:
         return {
           endpoint: '/api/tasks',
           label: 'SEO Tasks',
-          columns: ['serial', 'selection', 'client', 'title', 'comments', 'category', 'status', 'priority', 'eta', 'assigned', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
+          columns: ['serial', 'selection', 'client', 'title', 'comments', 'comments_for_client', 'category', 'status', 'priority', 'eta', 'team_label', 'assigned', 'started_date', 'link', 'internal_approval', 'send_link', 'client_approval', 'client_feedback', 'actions'],
           widths: TASK_COLUMN_WIDTHS
         }
     }
@@ -527,8 +510,7 @@ function TasksPageContent() {
 
   const loadData = async () => {
     setLoading(true)
-    setTasks([]) // Clear stale data immediate
-    setPagination({ total: 0, page: 1, totalPages: 1 })
+    // NOTE: Don't clear tasks here — keeping stale data visible prevents scroll reset
 
     const params = new URLSearchParams(searchParams.toString())
     params.delete('service') // API doesn't need the service param, it's in the URL
@@ -555,7 +537,8 @@ function TasksPageContent() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (localSearch !== filterSearch) {
-        updateQueryParams({ search: localSearch })
+        // Reset to page 1 when search changes so results are always from page 1
+        updateQueryParams({ search: localSearch, page: 1 })
       }
     }, 300)
     return () => clearTimeout(timer)
@@ -746,48 +729,6 @@ function TasksPageContent() {
     })
   }, [allTasks, sortConfig, clientMap, memberMap])
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  )
-
-  const handleRowDragEnd = async (event) => {
-    if (sortConfig.field) return
-    const { active, over } = event
-    if (!over) return
-    if (active.id !== over.id) {
-      const oldIndex = allTasks.findIndex((t) => t.id === active.id)
-      const newIndex = allTasks.findIndex((t) => t.id === over.id)
-      if (oldIndex === -1 || newIndex === -1) return
-
-      const updated = arrayMove(allTasks, oldIndex, newIndex)
-      setTasks(updated)
-
-      try {
-        await apiFetch(`${serviceConfig.endpoint}/reorder`, {
-          method: 'PUT',
-          body: JSON.stringify({ ids: updated.map(t => t.id) })
-        })
-      } catch (e) {
-        console.error('Failed to persist task order', e)
-        loadData()
-      }
-    }
-  }
-
-  const handleColDragEnd = (event) => {
-    const { active, over } = event
-    if (!over) return
-    if (active.id !== over.id) {
-      setColumnOrder((items) => {
-        const oldIndex = items.indexOf(active.id)
-        const newIndex = items.indexOf(over.id)
-        const updated = arrayMove(items, oldIndex, newIndex)
-        localStorage.setItem(`tasks_column_order_${service}`, JSON.stringify(updated))
-        return updated
-      })
-    }
-  }
 
   const handleSort = (field) => {
     if (!field) return
@@ -796,27 +737,21 @@ function TasksPageContent() {
   }
 
   const SortableHeader = ({ id, label, sortField: sField }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: id || 'header' })
     const isSticky = id === 'title' || id === 'serial' || id === 'selection' || id === 'client'
     const leftPosMap = { serial: '0px', selection: '55px', client: '115px', title: '255px' }
     const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      zIndex: isDragging ? 40 : (isSticky ? 30 : 10),
       width: serviceConfig.widths[id] || 'auto',
       minWidth: serviceConfig.widths[id] || 'auto',
-      position: isSticky ? 'sticky' : 'relative',
+      position: isSticky ? 'sticky' : undefined,
       left: isSticky ? leftPosMap[id] : undefined,
       background: isSticky ? '#f9fafb' : undefined,
+      zIndex: isSticky ? 30 : undefined,
       boxShadow: id === 'title' ? '4px 0 8px -4px rgba(0,0,0,0.1)' : undefined,
       borderRight: isSticky ? '1px solid #e5e7eb' : undefined
     }
     return (
-      <th ref={setNodeRef} style={style} className={`text-left px-3 py-2.5 font-semibold text-gray-600 bg-gray-50 border-r border-gray-100 last:border-0 ${isDragging ? 'opacity-50' : ''}`}>
-        <div className="flex items-center gap-2 overflow-hidden">
-          <div {...attributes} {...listeners} className="cursor-grab hover:text-blue-500 flex-shrink-0">
-            <GripHorizontal className="w-3 h-3" />
-          </div>
+      <th style={style} className="text-left px-3 py-2.5 font-semibold text-gray-600 bg-gray-50 border-r border-gray-100 last:border-0">
+        <div className="flex items-center gap-1 overflow-hidden">
           <button
             type="button"
             onClick={() => handleSort(sField)}
@@ -837,12 +772,11 @@ function TasksPageContent() {
   }
 
   const SortableRow = ({ task }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task?.id || 'unknown' })
     if (!task?.id) return null
-    const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : 0 }
+    const serialNum = (pagination.page - 1) * 50 + sorted.findIndex(t => t.id === task.id) + 1
 
     return (
-      <tr ref={setNodeRef} style={style} className={`hover:bg-gray-50 group border-b border-gray-100 ${selected.includes(task?.id) ? 'bg-blue-50' : ''} ${isDragging ? 'opacity-50 shadow-lg' : ''}`}>
+      <tr className={`hover:bg-gray-50 group border-b border-gray-100 ${selected.includes(task?.id) ? 'bg-blue-50' : ''}`}>
         {safeArray(columnOrder).map(colId => {
           const isSticky = colId === 'title' || colId === 'serial' || colId === 'selection' || colId === 'client'
           const leftPosMap = { serial: '0px', selection: '55px', client: '115px', title: '255px' }
@@ -859,16 +793,11 @@ function TasksPageContent() {
               style={{ width: serviceConfig.widths[colId], minWidth: serviceConfig.widths[colId], ...stickyStyle }}>
               {colId === 'serial' && (
                 <div className="text-[10px] font-mono text-gray-400 text-center select-none">
-                  {sorted.findIndex(t => t.id === task.id) + 1}
+                  {serialNum}
                 </div>
               )}
               {colId === 'selection' && (
                 <div className="flex items-center gap-3 px-1">
-                  {!sortConfig.field && (
-                    <div {...attributes} {...listeners} className="cursor-grab text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <GripVertical className="w-3 h-3" />
-                    </div>
-                  )}
                   <Checkbox checked={selected.includes(task.id)} onCheckedChange={() => toggleSelect(task.id)} />
                 </div>
               )}
@@ -882,6 +811,8 @@ function TasksPageContent() {
               {colId === 'status' && <EditableCell value={task.status} type="status" options={STATUSES} onSave={v => updateTask(task.id, 'status', v)} />}
               {colId === 'priority' && <EditableCell value={task.priority} type="priority" options={PRIORITIES} onSave={v => updateTask(task.id, 'priority', v)} />}
               {colId === 'eta' && <EditableCell value={task.eta_end} type="date" onSave={v => updateTask(task.id, 'eta_end', v)} />}
+              {colId === 'started_date' && <EditableCell value={task.started_date} type="date" onSave={v => updateTask(task.id, 'started_date', v)} />}
+              {colId === 'team_label' && <EditableCell value={task.team_label} type="select" options={TEAM_LABELS} onSave={v => updateTask(task.id, 'team_label', v)} />}
               {colId === 'assigned' && (
                 <AssigneeCell
                   task={task}
@@ -1042,12 +973,23 @@ function TasksPageContent() {
               {colId === 'comments' && (
                 <div
                   className="cursor-pointer px-1 py-0.5 rounded hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 transition-all min-h-[24px] max-w-[200px]"
-                  title={task.comments || 'Click to add description'}
-                  onClick={() => setCommentsModal({ taskId: task.id, value: task.comments || '' })}
+                  title={task.comments || 'Click to add task description'}
+                  onClick={() => setCommentsModal({ taskId: task.id, value: task.comments || '', field: 'comments', label: 'Task Description' })}
                 >
                   {task.comments
                     ? <span className="text-xs text-gray-600 truncate block">{task.comments}</span>
                     : <span className="text-gray-300 text-xs">Add description...</span>}
+                </div>
+              )}
+              {colId === 'comments_for_client' && (
+                <div
+                  className="cursor-pointer px-1 py-0.5 rounded hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 transition-all min-h-[24px] max-w-[200px]"
+                  title={task.comments_for_client || 'Click to add comment for client'}
+                  onClick={() => setCommentsModal({ taskId: task.id, value: task.comments_for_client || '', field: 'comments_for_client', label: 'Comments for Client' })}
+                >
+                  {task.comments_for_client
+                    ? <span className="text-xs text-gray-600 truncate block">{task.comments_for_client}</span>
+                    : <span className="text-gray-300 text-xs">Add comment...</span>}
                 </div>
               )}
               {colId === 'actions' && (
@@ -1064,10 +1006,12 @@ function TasksPageContent() {
 
   const columnLabels = {
     selection: '', serial: '#', client: 'Client', title: 'Task', category: 'Category', status: 'Status', priority: 'Priority',
-    eta: 'ETA End', assigned: 'Assigned', link: 'Link', internal_approval: 'Internal Approval', send_link: 'Send Link',
+    eta: 'ETA End', started_date: 'Start Date', team_label: 'Team', assigned: 'Assigned', link: 'Link',
+    internal_approval: 'Internal Approval', send_link: 'Send Link',
     campaign_live: 'Campaign Live', live_data: 'Live Data',
     live_link: 'Live Link', live_date: 'Live Date',
-    client_approval: 'Client Approval', client_feedback: 'Client Feedback', comments: 'Comments', actions: '',
+    client_approval: 'Client Approval', client_feedback: 'Client Feedback',
+    comments: 'Task Description', comments_for_client: 'Comments', actions: '',
     // Social
     format: 'Format', social_status: 'Status', reference: 'Reference', visual_brief: 'Visual Brief', content: 'Content', caption: 'Caption',
     send_idea: 'Send Idea', content_idea_approval: 'Idea Approval', content_idea_feedback: 'Idea Feedback',
@@ -1081,6 +1025,8 @@ function TasksPageContent() {
     status: 'status',
     priority: 'priority',
     eta: 'eta_end',
+    started_date: 'started_date',
+    team_label: 'team_label',
     assigned: 'assigned_name',
     link: 'link_url',
     live_link: 'live_link',
@@ -1091,6 +1037,7 @@ function TasksPageContent() {
     client_approval: 'client_approval',
     client_feedback: 'client_feedback_note',
     comments: 'comments',
+    comments_for_client: 'comments_for_client',
     // Social
     format: 'format',
     social_status: 'status',
@@ -1227,35 +1174,27 @@ function TasksPageContent() {
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-lg overflow-auto shadow-sm">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleColDragEnd} modifiers={[restrictToHorizontalAxis]}>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleRowDragEnd} modifiers={[restrictToVerticalAxis]}>
-            <table className="w-full text-sm" style={{ minWidth: '1800px', tableLayout: 'fixed' }}>
-              <thead className="sticky top-0 z-40">
-                <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-                  <tr className="border-b border-gray-200 bg-gray-50/80">
-                    {columnOrder.map(colId => (
-                      <SortableHeader key={colId} id={colId} label={columnLabels[colId]} sortField={columnSortFields[colId]} />
-                    ))}
-                  </tr>
-                </SortableContext>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {loading ? (
-                  <tr><td colSpan={columnOrder.length} className="px-4 py-8 text-center text-gray-400">Loading...</td></tr>
-                ) : sorted.length === 0 ? (
-                  <tr><td colSpan={columnOrder.length} className="px-4 py-8 text-center text-gray-400">No tasks found</td></tr>
-                ) : (
-                  <SortableContext items={sorted.map(t => t?.id)} strategy={verticalListSortingStrategy}>
-                    {sorted.map(task => <SortableRow key={task.id} task={task} />)}
-                  </SortableContext>
-                )}
+      <div className="bg-white border border-gray-200 rounded-lg overflow-auto shadow-sm" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          <table className="w-full text-sm" style={{ minWidth: '1800px', tableLayout: 'fixed' }}>
+            <thead className="sticky top-0 z-40 bg-gray-50">
+                <tr className="border-b border-gray-200 bg-gray-50/80">
+                  {columnOrder.map(colId => (
+                    <SortableHeader key={colId} id={colId} label={columnLabels[colId]} sortField={columnSortFields[colId]} />
+                  ))}
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {loading ? (
+                <tr><td colSpan={columnOrder.length} className="px-4 py-8 text-center text-gray-400">Loading...</td></tr>
+              ) : sorted.length === 0 ? (
+                <tr><td colSpan={columnOrder.length} className="px-4 py-8 text-center text-gray-400">No tasks found</td></tr>
+              ) : (
+                sorted.map(task => <SortableRow key={task.id} task={task} />)
+              )}
 
-              </tbody>
-            </table>
-          </DndContext>
-        </DndContext>
-        <Pagination
+            </tbody>
+          </table>
+      <Pagination
           total={pagination.total}
           page={pagination.page}
           totalPages={pagination.totalPages}
@@ -1266,9 +1205,11 @@ function TasksPageContent() {
       <ConfirmDialog config={confirmConfig} onClose={() => setConfirmConfig(null)} />
       {commentsModal && (
         <CommentsModal
+          key={commentsModal.taskId + '_' + commentsModal.field}
           value={commentsModal.value}
+          label={commentsModal.label}
           onClose={() => setCommentsModal(null)}
-          onSave={(val) => updateTask(commentsModal.taskId, 'comments', val)}
+          onSave={(val) => updateTask(commentsModal.taskId, commentsModal.field, val)}
         />
       )}
       {feedbackModal && (

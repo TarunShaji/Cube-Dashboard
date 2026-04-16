@@ -10,34 +10,17 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { EditableCell } from '@/components/table/EditableCell'
 import { LinkCell } from '@/components/table/LinkCell'
-import { FileText, Plus, Trash2, Filter, Search, GripVertical, GripHorizontal, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { FileText, Plus, Trash2, Filter, Search, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { safeJSON, safeArray } from '@/lib/safe'
 import { Pagination } from '@/components/shared/Pagination'
 import { ClientSwitcher } from '@/components/shared/ClientSwitcher'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  horizontalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { restrictToHorizontalAxis, restrictToVerticalAxis } from '@dnd-kit/modifiers'
 
 import {
   OUTLINE_STATUSES, TOPIC_APPROVALS, BLOG_APPROVALS, BLOG_STATUSES, CONTENT_INTERNAL_APPROVALS,
-  INTERN_STATUSES, topicApprovalColors, blogStatusColors, approvalColors, internStatusColors, CONTENT_COLUMN_WIDTHS
+  INTERN_STATUSES, CONTENT_PRIORITIES,
+  topicApprovalColors, blogStatusColors, approvalColors, internStatusColors, priorityColors, CONTENT_COLUMN_WIDTHS
 } from '@/lib/constants'
 
 function AddContentModal({ isOpen, onClose, clients, onAdd, isAdding }) {
@@ -174,13 +157,43 @@ function AddContentModal({ isOpen, onClose, clients, onAdd, isAdding }) {
   )
 }
 
-const COL_ORDER_KEY = 'content_column_order_v4'
+function TitleModal({ value, onClose, onSave }) {
+  const [local, setLocal] = useState(value || '')
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Blog Title</DialogTitle>
+          <DialogDescription>View or edit the full blog title. Ctrl+Enter to save.</DialogDescription>
+        </DialogHeader>
+        <textarea
+          autoFocus
+          value={local}
+          onChange={e => setLocal(e.target.value)}
+          rows={4}
+          placeholder="Enter blog title..."
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-y"
+          onKeyDown={e => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { onSave(local); onClose() }
+          }}
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => { onSave(local); onClose() }}>Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+const COL_ORDER_KEY = 'content_column_order_v6'
 const DEFAULT_COL_ORDER = [
-  'client', 'week', 'title', 'primary_keyword', 'secondary_keyword', 'writer',
-  'outline', 'intern_status', 'search_volume',
-  'topic_approval', 'blog_status', 'blog_doc',
-  'blog_internal_approval', 'send_link', 'date_sent', 'blog_approval', 'approved_on', 'blog_feedback',
-  'link', 'required_by', 'published', 'actions'
+  'client', 'week', 'title', 'primary_keyword', 'search_volume', 'secondary_keyword',
+  'topic_approval', 'content_priority', 'required_by',
+  'writer', 'outline', 'intern_status',
+  'blog_doc', 'blog_internal_approval', 'blog_status',
+  'send_link', 'date_sent', 'blog_approval', 'approved_on', 'blog_feedback',
+  'link', 'published', 'comments', 'actions'
 ]
 
 function ContentCalendarContent() {
@@ -229,6 +242,8 @@ function ContentCalendarContent() {
   const [addingContent, setAddingContent] = useState(false)
   const [confirmConfig, setConfirmConfig] = useState(null)
   const [showAddModal, setShowAddModal] = useState(false)
+  // Title expand modal state: { value, contentId }
+  const [titleModal, setTitleModal] = useState(null)
 
   const updateQueryParams = (updates) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -244,21 +259,27 @@ function ContentCalendarContent() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (localSearch !== filterSearch) {
-        updateQueryParams({ search: localSearch })
+        // Reset to page 1 when search changes
+        updateQueryParams({ search: localSearch, page: 1 })
       }
     }, 300)
     return () => clearTimeout(timer)
   }, [localSearch])
 
   useEffect(() => {
-    // Bump to v4 to clear stale column orders
+    // Bump to v6 to clear stale column orders
     localStorage.removeItem('content_column_order_v2')
     localStorage.removeItem('content_column_order_v3')
+    localStorage.removeItem('content_column_order_v4')
+    localStorage.removeItem('content_column_order_v5')
 
     const saved = localStorage.getItem(COL_ORDER_KEY)
     const parsed = safeJSON(saved)
     if (parsed && Array.isArray(parsed)) {
-      setColumnOrder(parsed)
+      // Merge: add new cols not in saved, remove obsolete ones
+      const merged = parsed.filter(id => DEFAULT_COL_ORDER.includes(id))
+      DEFAULT_COL_ORDER.forEach(id => { if (!merged.includes(id)) merged.push(id) })
+      setColumnOrder(merged)
     } else {
       setColumnOrder(DEFAULT_COL_ORDER)
     }
@@ -404,48 +425,6 @@ function ContentCalendarContent() {
     })
   }, [content, sortConfig, clientMap])
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  )
-
-  const handleRowDragEnd = async (event) => {
-    if (sortConfig.field) return
-    const { active, over } = event
-    if (!over) return
-    if (active.id !== over.id) {
-      const oldIndex = content.findIndex((c) => c.id === active.id)
-      const newIndex = content.findIndex((c) => c.id === over.id)
-      if (oldIndex === -1 || newIndex === -1) return
-
-      const reordered = arrayMove(content, oldIndex, newIndex)
-      mutateContent({ ...contentResponse, data: reordered }, false)
-
-      try {
-        await apiFetch('/api/content/reorder', {
-          method: 'PUT',
-          body: JSON.stringify({ ids: reordered.map(c => c.id) })
-        })
-      } catch (e) {
-        console.error('Failed to persist content order', e)
-        mutateContent()
-      }
-    }
-  }
-
-  const handleColDragEnd = (event) => {
-    const { active, over } = event
-    if (!over) return
-    if (active.id !== over.id) {
-      setColumnOrder((items) => {
-        const oldIndex = items.indexOf(active.id)
-        const newIndex = items.indexOf(over.id)
-        const updated = arrayMove(items, oldIndex, newIndex)
-        localStorage.setItem(COL_ORDER_KEY, JSON.stringify(updated))
-        return updated
-      })
-    }
-  }
 
   const handleSort = (field) => {
     if (!field) return
@@ -453,23 +432,16 @@ function ContentCalendarContent() {
     updateQueryParams({ sort_by: field, sort_dir: nextDirection, page: 1 })
   }
 
-  const SortableHeader = ({ id, label, sortField }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: id || 'header' })
+  const ColumnHeader = ({ id, label, sortField }) => {
     const isSticky = id === 'title'
     const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      zIndex: isDragging ? 30 : (isSticky ? 20 : 0),
       width: CONTENT_COLUMN_WIDTHS[id] || 'auto',
       minWidth: CONTENT_COLUMN_WIDTHS[id] || 'auto',
-      ...(isSticky ? { position: 'sticky', left: '55px', background: '#fff', borderRight: '1px solid #f3f4f6' } : {})
+      ...(isSticky ? { position: 'sticky', left: '55px', background: '#f9fafb', zIndex: 20, borderRight: '1px solid #f3f4f6' } : {})
     }
     return (
-      <th ref={setNodeRef} style={style} className={`text-left px-3 py-2.5 font-semibold text-gray-600 bg-gray-50 border-r border-gray-100 last:border-0 ${isDragging ? 'opacity-50' : ''}`}>
-        <div className="flex items-center gap-2 overflow-hidden">
-          <div {...attributes} {...listeners} className="cursor-grab hover:text-blue-500 flex-shrink-0">
-            <GripHorizontal className="w-3 h-3" />
-          </div>
+      <th style={style} className="text-left px-3 py-2.5 font-semibold text-gray-600 bg-gray-50 border-r border-gray-100 last:border-0">
+        <div className="flex items-center gap-1 overflow-hidden">
           <button
             type="button"
             onClick={() => handleSort(sortField)}
@@ -490,15 +462,14 @@ function ContentCalendarContent() {
   }
 
   const SortableRow = ({ item, rowIndex }) => {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item?.id || 'unknown' })
     if (!item?.id) return null
-    const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 20 : 0 }
+    const serialNum = (pagination.page - 1) * 50 + rowIndex + 1
     return (
-      <tr ref={setNodeRef} style={style} className={`hover:bg-gray-50 group border-b border-gray-100 ${isDragging ? 'opacity-50 shadow-lg' : ''}`}>
+      <tr className="hover:bg-gray-50 group border-b border-gray-100">
         {/* Serial number — always leftmost, not draggable */}
         <td className="px-2 py-1.5 text-center text-gray-400 font-mono text-[11px] bg-white border-r border-gray-100 select-none"
           style={{ width: CONTENT_COLUMN_WIDTHS.serial, minWidth: CONTENT_COLUMN_WIDTHS.serial, position: 'sticky', left: 0, background: '#fff', zIndex: 20 }}>
-          {rowIndex + 1}
+          {serialNum}
         </td>
         {safeArray(columnOrder).map(colId => {
           const isSticky = colId === 'title'
@@ -508,18 +479,21 @@ function ContentCalendarContent() {
               style={{ width: CONTENT_COLUMN_WIDTHS[colId], minWidth: CONTENT_COLUMN_WIDTHS[colId], ...stickyStyle }}>
               {colId === 'client' && (
                 <div className="flex items-center gap-2">
-                  {!sortConfig.field && (
-                    <div {...attributes} {...listeners} className="cursor-grab text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <GripVertical className="w-3 h-3" />
-                    </div>
-                  )}
                   <Link href={`/dashboard/clients/${item?.client_id}`} className="text-xs text-blue-600 hover:underline font-medium">
                     {clients.find(c => c.id === item?.client_id)?.name || clientMap[item?.client_id] || 'Unknown'}
                   </Link>
                 </div>
               )}
               {colId === 'week' && <EditableCell value={item.week} onSave={v => updateContent(item.id, 'week', v)} placeholder="Week" />}
-              {colId === 'title' && <EditableCell value={item.blog_title} onSave={v => updateContent(item.id, 'blog_title', v)} />}
+              {colId === 'title' && (
+                <div
+                  className="cursor-pointer px-1 py-0.5 rounded hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 transition-all min-h-[24px] w-full"
+                  onClick={() => setTitleModal({ value: item.blog_title || '', contentId: item.id })}
+                  title={item.blog_title || 'Click to view/edit title'}
+                >
+                  <span className="text-xs text-gray-700 truncate block">{item.blog_title || <span className="text-gray-300">—</span>}</span>
+                </div>
+              )}
               {colId === 'primary_keyword' && <EditableCell value={item.primary_keyword} onSave={v => updateContent(item.id, 'primary_keyword', v)} placeholder="Primary Keyword" />}
               {colId === 'secondary_keyword' && <EditableCell value={item.secondary_keywords} onSave={v => updateContent(item.id, 'secondary_keywords', v)} placeholder="Secondary Keyword" />}
               {colId === 'writer' && <EditableCell value={item.writer} onSave={v => updateContent(item.id, 'writer', v)} placeholder="Writer" />}
@@ -537,6 +511,14 @@ function ContentCalendarContent() {
               )}
               {colId === 'required_by' && <EditableCell value={item.required_by} type="date" onSave={v => updateContent(item.id, 'required_by', v)} />}
               {colId === 'topic_approval' && <EditableCell value={item.topic_approval_status || 'Pending'} type="topic_approval" options={TOPIC_APPROVALS} onSave={v => updateContent(item.id, 'topic_approval_status', v)} />}
+              {colId === 'content_priority' && (
+                <EditableCell
+                  value={item.content_priority}
+                  type="priority"
+                  options={CONTENT_PRIORITIES}
+                  onSave={v => updateContent(item.id, 'content_priority', v || null)}
+                />
+              )}
               {colId === 'blog_status' && <EditableCell value={item.blog_status || 'Draft'} type="blog_status" options={BLOG_STATUSES} onSave={v => updateContent(item.id, 'blog_status', v)} />}
               {colId === 'blog_internal_approval' && (
                 <EditableCell
@@ -548,19 +530,42 @@ function ContentCalendarContent() {
                 />
               )}
               {colId === 'send_link' && (
-                <Button
-                  size="sm"
-                  variant={item.client_link_visible_blog ? 'ghost' : 'default'}
-                  className={`h-7 px-2 text-[10px] uppercase tracking-wider font-bold ${item.client_link_visible_blog ? 'text-green-600' : ''}`}
-                  disabled={
-                    item.blog_internal_approval !== 'Approved' ||
-                    !item.blog_doc_link ||
-                    item.client_link_visible_blog === true
-                  }
-                  onClick={() => publishContent(item.id)}
-                >
-                  {item.client_link_visible_blog ? 'Sent' : 'Send Link'}
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant={item.client_link_visible_blog ? 'ghost' : 'default'}
+                    className={`h-7 px-2 text-[10px] uppercase tracking-wider font-bold ${item.client_link_visible_blog ? 'text-green-600 cursor-default' : ''}`}
+                    disabled={
+                      item.blog_internal_approval !== 'Approved' ||
+                      !item.blog_doc_link ||
+                      item.client_link_visible_blog === true
+                    }
+                    onClick={() => setConfirmConfig({
+                      title: 'Send to Client Portal',
+                      description: 'This will make the blog document visible to the client on their portal. Please confirm before proceeding.',
+                      onConfirm: () => publishContent(item.id),
+                      confirmText: 'Send to Client',
+                      confirmClass: 'bg-blue-600 hover:bg-blue-700 text-white'
+                    })}
+                  >
+                    {item.client_link_visible_blog ? 'Sent' : 'Send Link'}
+                  </Button>
+                  {item.client_link_visible_blog && (
+                    <button
+                      title="Unsend — remove from client portal"
+                      className="h-7 px-1.5 text-[10px] text-gray-400 hover:text-red-500 hover:bg-red-50 rounded border border-transparent hover:border-red-100 transition-all"
+                      onClick={() => setConfirmConfig({
+                        title: 'Unsend from Client Portal',
+                        description: 'This will hide the blog document from the client portal. The client will no longer be able to view or approve it until you send it again.',
+                        onConfirm: () => updateContent(item.id, 'client_link_visible_blog', false),
+                        confirmText: 'Unsend',
+                        confirmClass: 'bg-red-600 hover:bg-red-700 text-white'
+                      })}
+                    >
+                      Unsend
+                    </button>
+                  )}
+                </div>
               )}
               {colId === 'blog_approval' && (
                 <EditableCell value={item.blog_approval_status || 'Pending Review'} type="blog_approval" options={BLOG_APPROVALS} disabled={true} />
@@ -583,6 +588,7 @@ function ContentCalendarContent() {
               {colId === 'date_sent' && (
                 <span className="text-xs text-gray-500">{item.date_sent_for_approval || '—'}</span>
               )}
+              {colId === 'comments' && <EditableCell value={item.comments} onSave={v => updateContent(item.id, 'comments', v)} placeholder="Notes..." />}
               {colId === 'actions' && (
                 <button onClick={() => deleteContent(item.id)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-red-400 transition-all">
                   <Trash2 className="w-3.5 h-3.5" />
@@ -600,11 +606,11 @@ function ContentCalendarContent() {
     primary_keyword: 'Primary Keyword', secondary_keyword: 'Secondary Keyword',
     writer: 'Writer', search_volume: 'Search Vol.', outline: 'Outline',
     intern_status: 'Intern Status', required_by: 'Required By',
-    topic_approval: 'Topic Approval', blog_status: 'Blog Status',
+    content_priority: 'Priority', topic_approval: 'Topic Approval', blog_status: 'Blog Status',
     blog_doc: 'Blog Doc', blog_internal_approval: 'Internal Approval', send_link: 'Send Link',
     date_sent: 'Sent For Appr.',
     blog_approval: 'Client Approval', approved_on: 'Approved On', blog_feedback: 'Feedback',
-    link: 'Blog Link', published: 'Published', actions: ''
+    link: 'Blog Link', published: 'Published', comments: 'Notes', actions: ''
   }
   const columnSortFields = {
     client: 'client_name',
@@ -747,43 +753,35 @@ function ContentCalendarContent() {
         )}
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg overflow-auto shadow-sm text-xs">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleColDragEnd} modifiers={[restrictToHorizontalAxis]}>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleRowDragEnd} modifiers={[restrictToVerticalAxis]}>
-            <table className="w-full text-sm" style={{ minWidth: '2500px', tableLayout: 'fixed' }}>
-              <thead>
-                {/* Serial number fixed header */}
-                <SortableContext items={columnOrder} strategy={horizontalListSortingStrategy}>
-                  <tr className="border-b border-gray-100 bg-gray-50/80 sticky top-0 z-10 text-xs">
-                    <th className="px-2 py-2.5 text-center text-gray-400 font-semibold bg-gray-50 border-r border-gray-100"
-                      style={{ width: CONTENT_COLUMN_WIDTHS.serial, minWidth: CONTENT_COLUMN_WIDTHS.serial, position: 'sticky', left: 0, zIndex: 15 }}>
-                      #
-                    </th>
-                    {columnOrder.map(colId => (
-                      <SortableHeader key={colId} id={colId} label={columnLabels[colId] || colId} sortField={columnSortFields[colId]} />
-                    ))}
-                  </tr>
-                </SortableContext>
-              </thead>
-              <tbody className="divide-y divide-gray-50 text-xs">
-                {loading ? (
-                  <tr><td colSpan={columnOrder.length} className="py-16 text-center text-gray-400">Loading...</td></tr>
-                ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={columnOrder.length} className="py-16 text-center text-gray-400">
-                      <FileText className="w-8 h-8 mx-auto mb-2 text-gray-200" />
-                      {content.length === 0 ? 'No content calendar items yet.' : 'No items match your filters.'}
-                    </td>
-                  </tr>
-                ) : (
-                  <SortableContext items={filtered.map(i => i?.id)} strategy={verticalListSortingStrategy}>
-                    {filtered.map((item, idx) => <SortableRow key={item.id} item={item} rowIndex={idx} />)}
-                  </SortableContext>
-                )}
-              </tbody>
-            </table>
-          </DndContext>
-        </DndContext>
+      <div className="bg-white border border-gray-200 rounded-lg overflow-auto shadow-sm text-xs" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+          <table className="w-full text-sm" style={{ minWidth: '2500px', tableLayout: 'fixed' }}>
+            <thead className="sticky top-0 z-30 bg-gray-50">
+              {/* Serial number fixed header */}
+                <tr className="border-b border-gray-100 bg-gray-50/80 text-xs">
+                  <th className="px-2 py-2.5 text-center text-gray-400 font-semibold bg-gray-50 border-r border-gray-100"
+                    style={{ width: CONTENT_COLUMN_WIDTHS.serial, minWidth: CONTENT_COLUMN_WIDTHS.serial, position: 'sticky', left: 0, zIndex: 15 }}>
+                    #
+                  </th>
+                  {columnOrder.map(colId => (
+                    <ColumnHeader key={colId} id={colId} label={columnLabels[colId] || colId} sortField={columnSortFields[colId]} />
+                  ))}
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50 text-xs">
+              {loading ? (
+                <tr><td colSpan={columnOrder.length} className="py-16 text-center text-gray-400">Loading...</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={columnOrder.length} className="py-16 text-center text-gray-400">
+                    <FileText className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+                    {content.length === 0 ? 'No content calendar items yet.' : 'No items match your filters.'}
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((item, idx) => <SortableRow key={item.id} item={item} rowIndex={idx} />)
+              )}
+            </tbody>
+          </table>
       </div>
 
       <div className="mt-4 flex items-center justify-between">
@@ -805,6 +803,14 @@ function ContentCalendarContent() {
         onAdd={addContent}
         isAdding={addingContent}
       />
+      {titleModal && (
+        <TitleModal
+          key={titleModal.contentId}
+          value={titleModal.value}
+          onClose={() => setTitleModal(null)}
+          onSave={(val) => { updateContent(titleModal.contentId, 'blog_title', val || ''); setTitleModal(null) }}
+        />
+      )}
     </div>
   )
 }

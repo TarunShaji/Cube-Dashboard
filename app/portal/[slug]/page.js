@@ -748,9 +748,12 @@ export default function ClientPortalPage() {
   const currentTasks = useMemo(() => {
     const raw = safeArray(tasks).filter(t => t.service === portalService)
     if (!taskSortCol) {
-      // Social media: sort by posting_date ascending (no date = end)
+      // Social media: sort by posting_date ascending, Posted tasks pinned to bottom
       if (portalService === 'social') {
         return [...raw].sort((a, b) => {
+          const aPosted = a?.status === 'Posted' ? 1 : 0
+          const bPosted = b?.status === 'Posted' ? 1 : 0
+          if (aPosted !== bPosted) return aPosted - bPosted
           const aDate = a?.posting_date ? new Date(a.posting_date).getTime() : Infinity
           const bDate = b?.posting_date ? new Date(b.posting_date).getTime() : Infinity
           return aDate - bDate
@@ -934,9 +937,9 @@ export default function ClientPortalPage() {
               <div className="text-center py-16 text-gray-400">No tasks yet.</div>
             ) : portalService === 'social' ? (
               /* ── Social Media — two-stage approval table ──────────────── */
-              <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+              <div className="bg-white rounded-xl border border-gray-200 overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
                 <table className="w-full text-sm" style={{ minWidth: '1400px' }}>
-                  <thead>
+                  <thead className="sticky top-0 z-10 bg-gray-50">
                     <tr className="bg-gray-50 border-b border-gray-100">
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap" style={{ minWidth: 110 }}>Format</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500" style={{ minWidth: 220 }}>Visual Brief</th>
@@ -1061,9 +1064,9 @@ export default function ClientPortalPage() {
               </div>
             ) : (
               /* ── SEO / Email / Paid — standard approval table ─────────── */
-              <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-                <table className="w-full text-sm" style={{ tableLayout: 'fixed', minWidth: '1000px' }}>
-                  <thead>
+              <div className="bg-white rounded-xl border border-gray-200 overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+                  <table className="w-full text-sm" style={{ tableLayout: 'fixed', minWidth: '1100px' }}>
+                  <thead className="sticky top-0 z-10 bg-gray-50">
                     <tr className="bg-gray-50 border-b border-gray-100">
                       <th className="text-left px-5 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.title }}>Task</th>
                       <th
@@ -1073,7 +1076,7 @@ export default function ClientPortalPage() {
                       >
                         Status {taskSortCol === 'status' ? (taskSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
                       </th>
-                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.client_feedback || '200px' }}>Feedback</th>
+                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: '240px' }}>Comments</th>
                       <th
                         className="text-left px-4 py-2 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
                         style={{ width: TASK_COLUMN_WIDTHS.link }}
@@ -1088,6 +1091,7 @@ export default function ClientPortalPage() {
                       >
                         Your Approval {taskSortCol === 'approval' ? (taskSortDir === 'asc' ? '↑' : '↓') : <span className="text-gray-300">↕</span>}
                       </th>
+                      <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500" style={{ width: TASK_COLUMN_WIDTHS.client_feedback || '200px' }}>Feedback</th>
                       <th
                         className="text-left px-4 py-2 text-xs font-semibold text-gray-500 cursor-pointer hover:text-gray-800 select-none"
                         style={{ width: TASK_COLUMN_WIDTHS.eta }}
@@ -1106,8 +1110,9 @@ export default function ClientPortalPage() {
                             {task?.status}
                           </span>
                         </td>
-                        <td className="px-4 py-4 max-w-[200px]">
-                          <ExpandableText text={task?.client_approval === 'Required Changes' ? task?.client_feedback_note : (task?.remarks || null)} />
+                        {/* Comments for client (read-only, expandable) */}
+                        <td className="px-4 py-4 max-w-[220px]">
+                          <ExpandableText text={task?.comments_for_client} />
                         </td>
                         <td className="px-4 py-4 text-center overflow-hidden">
                           {task?.client_link_visible && task?.link_url ? (
@@ -1132,6 +1137,10 @@ export default function ClientPortalPage() {
                             onUpdate={handleApprovalUpdate}
                           />
                         </td>
+                        {/* Feedback column = client_feedback_note shown when Required Changes */}
+                        <td className="px-4 py-4 max-w-[200px]">
+                          <ExpandableText text={task?.client_approval === 'Required Changes' ? task?.client_feedback_note : (task?.remarks || null)} />
+                        </td>
                         <td className="px-4 py-4 text-xs text-gray-500 whitespace-nowrap">{fmtDate(task?.eta_end || task?.campaign_live_date || task?.live_date || task?.campaign_live) || '—'}</td>
                       </tr>
                     ))}
@@ -1152,9 +1161,9 @@ export default function ClientPortalPage() {
                 <p className="text-gray-400">No content calendar items yet.</p>
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+              <div className="bg-white rounded-xl border border-gray-200 overflow-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
                 <table className="w-full text-sm" style={{ minWidth: '1660px' }}>
-                  <thead>
+                  <thead className="sticky top-0 z-10 bg-gray-50">
                     <tr className="bg-gray-50 border-b border-gray-100">
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500" style={{ minWidth: 340 }}>Blog Title</th>
                       <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500" style={{ minWidth: 220 }}>Primary Keywords</th>

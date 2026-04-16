@@ -43,12 +43,20 @@ export async function GET(request, { params }) {
             : []
         const clientMap = Object.fromEntries(safeArray(clients).map((c) => [c.id, c.name]))
 
+        const split = (tasks, isSocial = false) => {
+            const shaped = safeArray(tasks).map((t) => shapeTask(t, clientMap, isSocial))
+            return {
+                active: shaped.filter(t => t.status !== 'Completed'),
+                completed: shaped.filter(t => t.status === 'Completed'),
+            }
+        }
+
         return handleCORS(NextResponse.json({
             services: {
-                seo: safeArray(seoTasks).map((t) => shapeTask(t, clientMap)),
-                email: safeArray(emailTasks).map((t) => shapeTask(t, clientMap)),
-                paid: safeArray(paidTasks).map((t) => shapeTask(t, clientMap)),
-                social: safeArray(socialTasks).map((t) => shapeTask(t, clientMap, true)),
+                seo: split(seoTasks),
+                email: split(emailTasks),
+                paid: split(paidTasks),
+                social: split(socialTasks, true),
             }
         }))
     })

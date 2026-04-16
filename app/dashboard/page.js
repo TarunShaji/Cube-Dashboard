@@ -147,6 +147,8 @@ function DashboardPageContent() {
   const [filterTpl, setFilterTpl] = useState('all')
   const [filterCpl, setFilterCpl] = useState('all')
   const [filterStatus, setFilterStatus] = useState('active') // 'all' | 'active' | 'churned'
+  const [filterGoogleId, setFilterGoogleId] = useState('')
+  const [filterWebsiteId, setFilterWebsiteId] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ name: '', service_type: [], portal_password: '', email: '', website_access_id: '' })
   const [saving, setSaving] = useState(false)
@@ -196,14 +198,27 @@ function DashboardPageContent() {
       list = list.filter(c => filterCpl === '__none__' ? !c?.cpl_member_id : c?.cpl_member_id === filterCpl)
     }
 
+    if (filterGoogleId.trim()) {
+      const q = filterGoogleId.toLowerCase()
+      list = list.filter(c => {
+        const googleId = Array.isArray(c?.email) ? c.email.join(', ').toLowerCase() : String(c?.email || '').toLowerCase()
+        return googleId.includes(q)
+      })
+    }
+
+    if (filterWebsiteId.trim()) {
+      const q = filterWebsiteId.toLowerCase()
+      list = list.filter(c => String(c?.website_access_id || '').toLowerCase().includes(q))
+    }
+
     return list.sort((a, b) => {
       const ac = a?.is_churned === true ? 1 : 0
       const bc = b?.is_churned === true ? 1 : 0
       return ac - bc
     })
-  }, [clientList, search, filterService, filterNpl, filterTpl, filterCpl, filterStatus])
+  }, [clientList, search, filterService, filterNpl, filterTpl, filterCpl, filterStatus, filterGoogleId, filterWebsiteId])
 
-  const anyFilter = search.trim() || filterService.length > 0 || filterNpl !== 'all' || filterTpl !== 'all' || filterCpl !== 'all' || filterStatus !== 'active'
+  const anyFilter = search.trim() || filterService.length > 0 || filterNpl !== 'all' || filterTpl !== 'all' || filterCpl !== 'all' || filterStatus !== 'active' || filterGoogleId.trim() || filterWebsiteId.trim()
 
   const clearFilters = () => {
     setSearch('')
@@ -212,6 +227,8 @@ function DashboardPageContent() {
     setFilterTpl('all')
     setFilterCpl('all')
     setFilterStatus('active')
+    setFilterGoogleId('')
+    setFilterWebsiteId('')
   }
 
   const handleAdd = async (e) => {
@@ -380,6 +397,28 @@ function DashboardPageContent() {
               {members.map(m => <SelectItem key={m.id} value={m.id} className="text-xs">{m.name}</SelectItem>)}
             </SelectContent>
           </Select>
+
+          {/* Google Access ID filter */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+            <Input
+              placeholder="Google Access ID..."
+              value={filterGoogleId}
+              onChange={e => setFilterGoogleId(e.target.value)}
+              className={`pl-7 h-8 text-xs w-44 ${filterGoogleId.trim() ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-gray-200'}`}
+            />
+          </div>
+
+          {/* Website Access ID filter */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+            <Input
+              placeholder="Website Access ID..."
+              value={filterWebsiteId}
+              onChange={e => setFilterWebsiteId(e.target.value)}
+              className={`pl-7 h-8 text-xs w-44 ${filterWebsiteId.trim() ? 'border-blue-300 bg-blue-50 text-blue-700' : 'border-gray-200'}`}
+            />
+          </div>
 
           {/* Active filter count badge */}
           {anyFilter && (

@@ -12,7 +12,7 @@ function TeamPageContent() {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedMember, setSelectedMember] = useState(null)
-  const [memberTasks, setMemberTasks] = useState({ seo: [], email: [], paid: [], social: [] })
+  const [memberTasks, setMemberTasks] = useState({ seo: { active: [], completed: [] }, email: { active: [], completed: [] }, paid: { active: [], completed: [] }, social: { active: [], completed: [] } })
   const [loadingMemberTasks, setLoadingMemberTasks] = useState(false)
   const [confirmConfig, setConfirmConfig] = useState(null)
 
@@ -39,10 +39,10 @@ function TeamPageContent() {
     try {
       const res = await apiFetch(`/api/team/workload/${member.id}`)
       const payload = await res.json()
-      setMemberTasks(payload?.services || { seo: [], email: [], paid: [], social: [] })
+      setMemberTasks(payload?.services || { seo: { active: [], completed: [] }, email: { active: [], completed: [] }, paid: { active: [], completed: [] }, social: { active: [], completed: [] } })
     } catch (e) {
       console.error('Failed to load member tasks', e)
-      setMemberTasks({ seo: [], email: [], paid: [], social: [] })
+      setMemberTasks({ seo: { active: [], completed: [] }, email: { active: [], completed: [] }, paid: { active: [], completed: [] }, social: { active: [], completed: [] } })
     } finally {
       setLoadingMemberTasks(false)
     }
@@ -138,28 +138,61 @@ function TeamPageContent() {
               <div className="text-sm text-gray-400">Loading tasks...</div>
             )}
             {serviceSections.map((section) => {
-              const tasks = safeArray(memberTasks?.[section.key])
+              const activeTasks = safeArray(memberTasks?.[section.key]?.active)
+              const completedTasks = safeArray(memberTasks?.[section.key]?.completed)
+              const totalTasks = activeTasks.length + completedTasks.length
               return (
                 <div key={section.key} className="border border-gray-200 rounded-lg overflow-hidden">
                   <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
                     <span className="text-sm font-semibold text-gray-800">{section.label}</span>
-                    <span className="text-xs text-gray-500">{tasks.length} tasks</span>
+                    <span className="text-xs text-gray-500">{totalTasks} tasks</span>
                   </div>
-                  {tasks.length === 0 ? (
+                  {totalTasks === 0 ? (
                     <div className="px-4 py-3 text-xs text-gray-400">No assigned tasks</div>
                   ) : (
-                    <div className="divide-y divide-gray-100">
-                      {tasks.map((task) => (
-                        <div key={task.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm text-gray-900 truncate">{task.title}</p>
-                            <p className="text-xs text-gray-500 truncate">{task.client_name}</p>
+                    <div>
+                      {activeTasks.length > 0 && (
+                        <div>
+                          <div className="px-4 py-1.5 bg-blue-50 border-b border-gray-100 flex items-center justify-between">
+                            <span className="text-xs font-medium text-blue-700">Active</span>
+                            <span className="text-xs text-blue-500">{activeTasks.length}</span>
                           </div>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${statusColors[task?.status] || 'bg-gray-100 text-gray-600'}`}>
-                            {task.status}
-                          </span>
+                          <div className="divide-y divide-gray-100">
+                            {activeTasks.map((task) => (
+                              <div key={task.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-sm text-gray-900 truncate">{task.title}</p>
+                                  <p className="text-xs text-gray-500 truncate">{task.client_name}</p>
+                                </div>
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${statusColors[task?.status] || 'bg-gray-100 text-gray-600'}`}>
+                                  {task.status}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      ))}
+                      )}
+                      {completedTasks.length > 0 && (
+                        <div>
+                          <div className="px-4 py-1.5 bg-green-50 border-b border-gray-100 flex items-center justify-between">
+                            <span className="text-xs font-medium text-green-700">Completed</span>
+                            <span className="text-xs text-green-500">{completedTasks.length}</span>
+                          </div>
+                          <div className="divide-y divide-gray-100">
+                            {completedTasks.map((task) => (
+                              <div key={task.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-sm text-gray-900 truncate">{task.title}</p>
+                                  <p className="text-xs text-gray-500 truncate">{task.client_name}</p>
+                                </div>
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${statusColors[task?.status] || 'bg-gray-100 text-gray-600'}`}>
+                                  {task.status}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
