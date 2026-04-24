@@ -27,21 +27,10 @@ if (!MONGO_URL || !DB_NAME) {
 
 const force = process.argv.includes('--force')
 
-// Generates a human-friendly strong password: Word-Word-1234
-// Easy to share/type, hard to brute-force
+// Generates a random 12-character password using letters + digits
 function generatePassword() {
-  const adjectives = [
-    'Swift', 'Amber', 'Coral', 'Jade', 'Solar', 'Lunar', 'Crisp', 'Bold',
-    'Vivid', 'Noble', 'Stark', 'Prime', 'Calm', 'Brisk', 'Sharp', 'Deft'
-  ]
-  const nouns = [
-    'Falcon', 'Harbor', 'Summit', 'Ember', 'Cedar', 'Prism', 'Nexus', 'Orbit',
-    'Crest', 'Vault', 'Ridge', 'Flare', 'Pulse', 'Forge', 'Blaze', 'Stone'
-  ]
-  const adj = adjectives[crypto.randomInt(adjectives.length)]
-  const noun = nouns[crypto.randomInt(nouns.length)]
-  const num = String(crypto.randomInt(1000, 9999))
-  return `${adj}-${noun}-${num}`
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  return Array.from({ length: 12 }, () => chars[crypto.randomInt(chars.length)]).join('')
 }
 
 async function main() {
@@ -85,23 +74,12 @@ async function main() {
 
   await client.close()
 
-  // Print results table
-  const col1 = Math.max(12, ...results.map(r => r.name.length))
-  const col2 = Math.max(10, ...results.map(r => r.slug.length))
-  const col3 = 24
+  const fs = require('fs')
+  const lines = ['Client\tSlug\tPortal Password', ...results.map(r => `${r.name}\t${r.slug}\t${r.password}`)]
+  const outPath = 'scripts/portal-passwords.txt'
+  fs.writeFileSync(outPath, lines.join('\n'), 'utf8')
 
-  const line = `+-${'-'.repeat(col1)}-+-${'-'.repeat(col2)}-+-${'-'.repeat(col3)}-+`
-  const header = `| ${'Client'.padEnd(col1)} | ${'Slug'.padEnd(col2)} | ${'Portal Password'.padEnd(col3)} |`
-
-  console.log(line)
-  console.log(header)
-  console.log(line)
-  for (const r of results) {
-    console.log(`| ${r.name.padEnd(col1)} | ${r.slug.padEnd(col2)} | ${r.password.padEnd(col3)} |`)
-  }
-  console.log(line)
-
-  console.log(`\n✓ Done. Save these passwords — they cannot be recovered after this point.\n`)
+  console.log(`✓ Done. Passwords saved to ${outPath}\n`)
 }
 
 main().catch(err => {

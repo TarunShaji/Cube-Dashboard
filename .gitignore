@@ -26,6 +26,7 @@ next-env.d.ts
 
 # Environment files — NEVER commit these
 .env
+scripts/portal-passwords.txt
 .env.local
 .env.development.local
 .env.test.local

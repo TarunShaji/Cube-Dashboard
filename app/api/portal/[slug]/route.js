@@ -25,12 +25,18 @@ export async function GET(request, { params }) {
             const authHeader = request.headers.get('X-Portal-Password')
             let valid = false
             if (authHeader) {
-                try {
-                    // Primary path: bcrypt hash in DB
-                    valid = await bcrypt.compare(authHeader, pp)
-                } catch {
-                    // Legacy fallback for old plaintext records
-                    valid = authHeader === pp
+                // Master password check — works across all portals
+                const masterPassword = process.env.MASTER_PORTAL_PASSWORD
+                if (masterPassword && authHeader === masterPassword) {
+                    valid = true
+                } else {
+                    try {
+                        // Primary path: bcrypt hash in DB
+                        valid = await bcrypt.compare(authHeader, pp)
+                    } catch {
+                        // Legacy fallback for old plaintext records
+                        valid = authHeader === pp
+                    }
                 }
             }
             if (!valid) {
