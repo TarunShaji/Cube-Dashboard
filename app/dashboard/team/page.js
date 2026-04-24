@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import { apiFetch } from '@/lib/middleware/auth'
+import { apiFetch, getUser } from '@/lib/middleware/auth'
 import { safeArray } from '@/lib/safe'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Card, CardContent } from '@/components/ui/card'
@@ -15,6 +15,7 @@ function TeamPageContent() {
   const [memberTasks, setMemberTasks] = useState({ seo: { active: [], completed: [] }, email: { active: [], completed: [] }, paid: { active: [], completed: [] }, social: { active: [], completed: [] } })
   const [loadingMemberTasks, setLoadingMemberTasks] = useState(false)
   const [confirmConfig, setConfirmConfig] = useState(null)
+  const isAdmin = getUser()?.email === 'tarun@cubehq.ai'
 
   const loadData = async () => {
     setLoading(true)
@@ -53,7 +54,8 @@ function TeamPageContent() {
       title: 'Remove Team Member',
       description: 'This will remove the team member from the system.',
       onConfirm: async () => {
-        await apiFetch(`/api/team/${id}`, { method: 'DELETE' })
+        const res = await apiFetch(`/api/team/${id}`, { method: 'DELETE' })
+        if (!res.ok) return
         setMembers(m => m.filter(x => x.id !== id))
         setSelectedMember(prev => (prev?.id === id ? null : prev))
       }
@@ -98,16 +100,18 @@ function TeamPageContent() {
                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                   <span className="text-blue-700 font-bold text-base">{m?.name?.charAt(0)?.toUpperCase()}</span>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    deactivate(m.id)
-                  }}
-                  className="p-1 rounded hover:bg-red-50 text-gray-200 hover:text-red-400 transition-all"
-                  title="Remove team member"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      deactivate(m.id)
+                    }}
+                    className="p-1 rounded hover:bg-red-50 text-gray-200 hover:text-red-400 transition-all"
+                    title="Remove team member"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
               <div className="mt-3">
                 <p className="font-semibold text-gray-900">{m?.name}</p>

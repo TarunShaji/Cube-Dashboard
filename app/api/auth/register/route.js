@@ -8,24 +8,30 @@ export const runtime = 'nodejs';
 
 export async function POST(request) {
     return withErrorLogging(request, async () => {
+        const registrationSecret = process.env.REGISTRATION_SECRET
+        if (!registrationSecret) {
+            return handleCORS(NextResponse.json({ error: 'Registration is disabled' }, { status: 403 }))
+        }
+
         const database = await connectToMongo()
         const body = await request.json()
-        const { name, email, password } = body
+        const { name, email, password, registration_secret } = body
+
+        if (registration_secret !== registrationSecret) {
+            return handleCORS(NextResponse.json({ error: 'Invalid registration secret' }, { status: 403 }))
+        }
 
         if (!name || !email || !password) {
             return handleCORS(NextResponse.json({ error: 'All fields (name, email, password) are required' }, { status: 400 }))
         }
 
-        // 1. Check if email already exists
         const existing = await database.collection('team_members').findOne({ email: email.toLowerCase() })
         if (existing) {
             return handleCORS(NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 }))
         }
 
-        // 2. Hash password
         const passwordHash = await bcrypt.hash(password, 10)
 
-        // 3. Create member record
         const member = {
             id: uuidv4(),
             name,
@@ -38,7 +44,6 @@ export async function POST(request) {
 
         await database.collection('team_members').insertOne(member)
 
-        // 4. Return success (sanitize password_hash)
         const { _id, password_hash: _, ...result } = member
         return handleCORS(NextResponse.json({
             message: 'Registration successful',

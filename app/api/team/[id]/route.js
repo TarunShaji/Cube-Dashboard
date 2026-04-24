@@ -46,7 +46,10 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
-    return withAuth(request, async () => {
+    return withAuth(request, async (user) => {
+        if (user.email !== 'tarun@cubehq.ai') {
+            return handleCORS(NextResponse.json({ error: 'Forbidden' }, { status: 403 }))
+        }
         try {
             const { id: memberId } = params
             const database = await connectToMongo()

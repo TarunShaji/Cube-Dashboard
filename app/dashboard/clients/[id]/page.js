@@ -639,7 +639,10 @@ function ClientDetailPageContent() {
   const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || ''
 
   useEffect(() => {
-    if (client) setSettingsForm(client)
+    if (client) {
+      const { portal_password: _omit, ...formData } = client
+      setSettingsForm(formData)
+    }
   }, [client])
 
   const updateTask = async (taskId, field, value) => {

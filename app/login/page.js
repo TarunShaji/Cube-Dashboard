@@ -10,10 +10,8 @@ import { LayoutDashboard, Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -22,34 +20,21 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const endpoint = isSignUp ? '/api/auth/register' : '/api/auth/login'
-      const payload = isSignUp ? { email, password, name } : { email, password }
-
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ email, password })
       })
       const data = await res.json()
 
       if (!res.ok) {
-        setError(data.error || (isSignUp ? 'Registration failed' : 'Login failed'))
+        setError(data.error || 'Login failed')
         return
       }
 
-      if (isSignUp) {
-        // After successful registration, switch to login or auto-login
-        // Let's auto-login for better UX if the register returns a token, 
-        // but our register API doesn't currently return a token.
-        // So we'll switch to login mode and show a success message.
-        setIsSignUp(false)
-        setError('')
-        alert('Registration successful! Please sign in with your new credentials.')
-      } else {
-        localStorage.setItem('agency_token', data.token)
-        localStorage.setItem('agency_user', JSON.stringify(data.user))
-        router.push('/dashboard')
-      }
+      localStorage.setItem('agency_token', data.token)
+      localStorage.setItem('agency_user', JSON.stringify(data.user))
+      router.push('/dashboard')
     } catch (err) {
       setError('Network error. Please try again.')
     } finally {
@@ -69,30 +54,11 @@ export default function LoginPage() {
         </div>
         <Card className="border-0 shadow-2xl bg-slate-800/50 backdrop-blur-xl border-slate-700/50">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold text-white">
-              {isSignUp ? 'Create Account' : 'Welcome back'}
-            </CardTitle>
-            <CardDescription className="text-slate-400">
-              {isSignUp ? 'Join the agency team' : 'Enter your credentials to continue'}
-            </CardDescription>
+            <CardTitle className="text-2xl font-bold text-white">Welcome back</CardTitle>
+            <CardDescription className="text-slate-400">Enter your credentials to continue</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
-              {isSignUp && (
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-slate-300">Full Name</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="Sarah Chen"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    disabled={loading}
-                    className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-600"
-                  />
-                </div>
-              )}
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-slate-300">Email Address</Label>
                 <Input
@@ -106,9 +72,8 @@ export default function LoginPage() {
                   className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-600"
                 />
               </div>
-              {/* role selector removed for simplification */}
               <div className="space-y-2">
-                <Label htmlFor="password" title="password" className="text-slate-300">Password</Label>
+                <Label htmlFor="password" className="text-slate-300">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -126,21 +91,9 @@ export default function LoginPage() {
                 </div>
               )}
               <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-6" disabled={loading}>
-                {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing...</> : (isSignUp ? 'Sign Up' : 'Sign In')}
+                {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Signing in...</> : 'Sign In'}
               </Button>
             </form>
-            <div className="mt-6 flex flex-col items-center gap-4">
-              <button
-                type="button"
-                onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
-                className="text-sm text-slate-400 hover:text-blue-400 transition-colors"
-                disabled={loading}
-              >
-                {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-              </button>
-
-
-            </div>
           </CardContent>
         </Card>
       </div>

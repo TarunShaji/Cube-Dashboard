@@ -38,8 +38,8 @@ export default function DashboardLayout({ children }) {
     setUser(getUser())
   }, [])
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     router.push('/login')
   }
 
