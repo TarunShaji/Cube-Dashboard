@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useMemo, Suspense } from 'react'
+import { useScrollPreserve } from '@/hooks/use-scroll-preserve'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { apiFetch } from '@/lib/middleware/auth'
 import { Button } from '@/components/ui/button'
@@ -430,6 +431,7 @@ function TasksPageContent() {
 
   const [localSearch, setLocalSearch] = useState(filterSearch)
   const [columnOrder, setColumnOrder] = useState([])
+  const { scrollRef, saveScroll, restoreScroll } = useScrollPreserve()
   const sortConfig = useMemo(() => ({ field: sortBy || null, direction: sortDir }), [sortBy, sortDir])
 
   const getServiceConfig = (srv) => {
@@ -509,6 +511,7 @@ function TasksPageContent() {
   }
 
   const loadData = async () => {
+    saveScroll() // preserve scroll position before the loading state wipes the DOM
     setLoading(true)
     // NOTE: Don't clear tasks here — keeping stale data visible prevents scroll reset
 
@@ -529,6 +532,7 @@ function TasksPageContent() {
       totalPages: tasksData.totalPages || 1
     })
     setLoading(false)
+    restoreScroll() // restore after React commits the new rows to the DOM
   }
 
   useEffect(() => { loadLookups() }, [])
@@ -1180,7 +1184,7 @@ function TasksPageContent() {
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-lg overflow-auto shadow-sm" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+      <div ref={scrollRef} className="bg-white border border-gray-200 rounded-lg overflow-auto shadow-sm" style={{ maxHeight: 'calc(100vh - 200px)' }}>
           <table className="w-full text-sm" style={{ minWidth: '1800px', tableLayout: 'fixed' }}>
             <thead className="sticky top-0 z-40 bg-gray-50">
                 <tr className="border-b border-gray-200 bg-gray-50/80">
