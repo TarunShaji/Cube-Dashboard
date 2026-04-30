@@ -581,7 +581,7 @@ function stateToSection(tab, service) {
   if (service === 'email') return 'email'
   if (service === 'paid') return 'paid-ads'
   if (service === 'social') return 'social'
-  return null
+  return 'seo'
 }
 
 export default function ClientPortalPage() {
@@ -717,14 +717,10 @@ export default function ClientPortalPage() {
       serviceInitialized.current = true
       return
     }
-    if (client?.service_type) {
+    if (client) {
       serviceInitialized.current = true
-      const srvArr = Array.isArray(client.service_type) ? client.service_type : (client.service_type ? [client.service_type] : [])
-      const srvStr = srvArr.join(',').toLowerCase()
-      if (srvStr.includes('email')) setPortalService('email')
-      else if (srvStr.includes('paid')) setPortalService('paid')
-      else if (srvStr.includes('social')) setPortalService('social')
-      else setPortalService('seo')
+      // Base URL always lands on SEO. The user can switch via the service switcher.
+      setPortalService('seo')
     }
   }, [client])
 
@@ -897,7 +893,7 @@ export default function ClientPortalPage() {
               <FileText className="w-4 h-4" /> Content Calendar {content.length > 0 && `(${content.length})`}
             </TabsTrigger>
             <TabsTrigger value="resources" className="gap-1.5">
-              <Library className="w-4 h-4" /> Resources {resources.length > 0 && `(${resources.length})`}
+              <Library className="w-4 h-4" /> External Resources {resources.length > 0 && `(${resources.length})`}
             </TabsTrigger>
             <TabsTrigger value="reports" className="gap-1.5">
               <BarChart3 className="w-4 h-4" /> Reports {reports.length > 0 && `(${reports.length})`}

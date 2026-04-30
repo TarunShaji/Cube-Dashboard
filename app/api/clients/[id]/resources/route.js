@@ -9,9 +9,20 @@ export async function GET(request, { params }) {
     return withAuth(request, async () => {
         const { id: clientId } = params
         const database = await connectToMongo()
+        const url = new URL(request.url)
+        const scope = url.searchParams.get('scope')
+        const serviceSection = url.searchParams.get('service_section')
+
+        const query = { client_id: clientId }
+        if (scope === 'internal') {
+            query.scope = 'internal'
+            if (serviceSection) query.service_section = serviceSection
+        } else if (scope === 'external') {
+            query.$or = [{ scope: 'external' }, { scope: { $exists: false } }]
+        }
 
         const resources = await database.collection('client_resources')
-            .find({ client_id: clientId })
+            .find(query)
             .sort({ created_at: -1 })
             .toArray()
 
@@ -25,7 +36,7 @@ export async function POST(request, { params }) {
         const { id: clientId } = params
         const database = await connectToMongo()
         const body = await request.json()
-        const { name, url, type, category } = body
+        const { name, url, type, category, scope, service_section } = body
 
         if (!name || !url) {
             return handleCORS(NextResponse.json({ error: 'Name and URL are required' }, { status: 400 }))
@@ -42,6 +53,8 @@ export async function POST(request, { params }) {
             created_at: now,
             updated_at: now
         }
+        if (scope) resource.scope = scope
+        if (service_section) resource.service_section = service_section
 
         await database.collection('client_resources').insertOne(resource)
         const { _id, ...result } = resource

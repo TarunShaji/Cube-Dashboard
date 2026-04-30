@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, Suspense } from 'react'
+import { useState, useMemo, Suspense, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { apiFetch, swrFetcher } from '@/lib/middleware/auth'
@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
-import { Plus, ExternalLink, Search, X } from 'lucide-react'
+import { Plus, ExternalLink, Search, X, FolderOpen, Trash2, Link2, Folder, Image } from 'lucide-react'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { SERVICE_TYPES } from '@/lib/constants'
 import { safeArray } from '@/lib/safe'
@@ -137,6 +137,200 @@ function EditableEmailCell({ value, onSave }) {
   )
 }
 
+const INTERNAL_SECTIONS = [
+  { key: 'seo', label: 'SEO' },
+  { key: 'email', label: 'Email' },
+  { key: 'paid-ads', label: 'Paid Ads' },
+  { key: 'social', label: 'Social Media' },
+  { key: 'content', label: 'Content Calendar' },
+]
+const RESOURCE_CATEGORIES = ['Assets', 'Branding', 'Media Library', 'Other']
+const RESOURCE_TYPES = ['link', 'folder', 'image']
+
+function InternalResourcesModal({ clientId, clientName, onClose }) {
+  const [activeSection, setActiveSection] = useState('seo')
+  const [resources, setResources] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState({ name: '', url: '', type: 'link', category: 'Assets' })
+  const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState(null)
+
+  const fetchResources = async () => {
+    setLoading(true)
+    try {
+      const res = await apiFetch(`/api/clients/${clientId}/resources?scope=internal`)
+      if (res.ok) {
+        const data = await res.json()
+        setResources(safeArray(data))
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchResources()
+  }, [clientId])
+
+  const sectionResources = safeArray(resources).filter(r => r.service_section === activeSection)
+
+  const handleAdd = async (e) => {
+    e.preventDefault()
+    if (!form.name.trim() || !form.url.trim()) return
+    setSaving(true)
+    try {
+      const res = await apiFetch(`/api/clients/${clientId}/resources`, {
+        method: 'POST',
+        body: JSON.stringify({ ...form, scope: 'internal', service_section: activeSection })
+      })
+      if (res.ok) {
+        const created = await res.json()
+        setResources(prev => [created, ...safeArray(prev)])
+        setForm({ name: '', url: '', type: 'link', category: 'Assets' })
+        setShowAdd(false)
+      } else {
+        alert('Failed to add resource')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async (resId) => {
+    if (!confirm('Delete this resource?')) return
+    setDeletingId(resId)
+    try {
+      const res = await apiFetch(`/api/clients/${clientId}/resources/${resId}`, { method: 'DELETE' })
+      if (res.ok) setResources(prev => safeArray(prev).filter(r => r.id !== resId))
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const ResourceTypeIcon = ({ type }) => {
+    if (type === 'image') return <Image className="w-5 h-5" />
+    if (type === 'folder') return <Folder className="w-5 h-5" />
+    return <Link2 className="w-5 h-5" />
+  }
+
+  return (
+    <Dialog open onOpenChange={open => { if (!open) onClose() }}>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FolderOpen className="w-5 h-5 text-blue-600" />
+            Internal Resources — {clientName}
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Section tabs */}
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+          {INTERNAL_SECTIONS.map(s => (
+            <button
+              key={s.key}
+              onClick={() => { setActiveSection(s.key); setShowAdd(false) }}
+              className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                activeSection === s.key ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Resources list */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {loading ? (
+            <div className="text-center py-8 text-gray-400 text-sm">Loading...</div>
+          ) : sectionResources.length === 0 && !showAdd ? (
+            <div className="text-center py-10 text-gray-400 text-sm">No resources in this section yet.</div>
+          ) : (
+            <div className="space-y-2 py-2">
+              {sectionResources.map(res => (
+                <div key={res.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 group">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                    <ResourceTypeIcon type={res.type} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{res.name}</p>
+                    <p className="text-xs text-gray-400 truncate">{res.url}</p>
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wider">{res.category}</span>
+                  </div>
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <a href={res.url} target="_blank" rel="noopener noreferrer"
+                      className="p-1.5 rounded-md hover:bg-blue-50 text-blue-600" title="Open">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                    <button onClick={() => handleDelete(res.id)} disabled={deletingId === res.id}
+                      className="p-1.5 rounded-md hover:bg-red-50 text-red-500" title="Delete">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add resource form */}
+          {showAdd && (
+            <form onSubmit={handleAdd} className="border border-blue-200 rounded-lg p-4 mt-2 bg-blue-50/40 space-y-3">
+              <p className="text-xs font-bold text-gray-700">Add Resource to {INTERNAL_SECTIONS.find(s => s.key === activeSection)?.label}</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Name *</label>
+                  <Input autoFocus placeholder="e.g. Brand Guidelines" value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="h-8 text-xs" required />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">URL *</label>
+                  <Input placeholder="https://..." value={form.url}
+                    onChange={e => setForm(f => ({ ...f, url: e.target.value }))} className="h-8 text-xs" required />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Type</label>
+                  <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v }))}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {RESOURCE_TYPES.map(t => <SelectItem key={t} value={t} className="text-xs capitalize">{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Category</label>
+                  <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {RESOURCE_CATEGORIES.map(c => <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="ghost" size="sm" className="text-xs" onClick={() => setShowAdd(false)}>Cancel</Button>
+                <Button type="submit" size="sm" className="text-xs" disabled={saving || !form.name.trim() || !form.url.trim()}>
+                  {saving ? 'Adding...' : 'Add Resource'}
+                </Button>
+              </div>
+            </form>
+          )}
+        </div>
+
+        <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+          {!showAdd && (
+            <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => setShowAdd(true)}>
+              <Plus className="w-3.5 h-3.5" /> Add Resource
+            </Button>
+          )}
+          <div className="ml-auto">
+            <Button size="sm" variant="ghost" className="text-xs" onClick={onClose}>Close</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function DashboardPageContent() {
   const router = useRouter()
   const { data: clients, mutate, error } = useSWR('/api/clients', swrFetcher)
@@ -151,6 +345,7 @@ function DashboardPageContent() {
   const [filterWebsiteId, setFilterWebsiteId] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ name: '', service_type: [], portal_password: '', email: '', website_access_id: '' })
+  const [internalResClient, setInternalResClient] = useState(null) // { id, name }
   const [saving, setSaving] = useState(false)
   const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || ''
 
@@ -443,6 +638,7 @@ function DashboardPageContent() {
                 <th className="text-left px-5 py-3.5 font-semibold text-gray-600 whitespace-nowrap" style={{ minWidth: '110px' }}>Active Tasks</th>
                 <th className="text-left px-5 py-3.5 font-semibold text-gray-600 whitespace-nowrap" style={{ minWidth: '220px' }} title="Google Workspace email IDs with access">Google Access ID</th>
                 <th className="text-left px-5 py-3.5 font-semibold text-gray-600 whitespace-nowrap" style={{ minWidth: '220px' }} title="Email ID with access to the website/CMS">Website Access ID</th>
+                <th className="text-left px-5 py-3.5 font-semibold text-gray-600 whitespace-nowrap" style={{ minWidth: '160px' }}>Internal Resources</th>
                 <th className="text-left px-5 py-3.5 font-semibold text-gray-600 whitespace-nowrap" style={{ minWidth: '200px' }}>Portal</th>
                 <th className="px-5 py-3.5" style={{ minWidth: '80px' }}></th>
               </tr>
@@ -450,7 +646,7 @@ function DashboardPageContent() {
             <tbody className="divide-y divide-gray-100">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-5 py-10 text-center text-gray-400">
+                  <td colSpan={11} className="px-5 py-10 text-center text-gray-400">
                     {clientList.length === 0 ? 'No clients yet. Add your first client!' : 'No clients match your filters.'}
                   </td>
                 </tr>
@@ -532,6 +728,16 @@ function DashboardPageContent() {
                       value={client.website_access_id}
                       onSave={v => updateClientFields(client.id, { website_access_id: v })}
                     />
+                  </td>
+
+                  {/* Internal Resources */}
+                  <td className="px-5 py-4" onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={() => setInternalResClient({ id: client.id, name: client.name })}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 text-xs font-semibold transition-colors whitespace-nowrap"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5" /> Resources
+                    </button>
                   </td>
 
                   {/* Portal Link */}
@@ -622,6 +828,15 @@ function DashboardPageContent() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Internal Resources Modal */}
+      {internalResClient && (
+        <InternalResourcesModal
+          clientId={internalResClient.id}
+          clientName={internalResClient.name}
+          onClose={() => setInternalResClient(null)}
+        />
+      )}
     </div>
   )
 }

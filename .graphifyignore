@@ -1,0 +1,84 @@
+# ── Dependencies ────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.yarn/
+
+# ── Build & compiler output ──────────────────────────────────────
+.next/
+/out/
+/build/
+/dist/
+next-env.d.ts
+*.tsbuildinfo
+
+# ── Graphify own output (avoid circular analysis) ───────────────
+graphify-out/
+
+# ── Database backups & exports ───────────────────────────────────
+atlas_backup/
+
+# ── Environment & secrets ────────────────────────────────────────
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+scripts/portal-passwords.txt
+*token.json*
+*credentials.json*
+
+# ── Certificates & binary assets ─────────────────────────────────
+*.pem
+*.pack
+*.zip
+*.tar.gz
+*.tar
+*.tgz
+*.deb
+*.dylib
+
+# ── Lock files (large, low signal for graph) ─────────────────────
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+
+# ── Python environment ───────────────────────────────────────────
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# ── Logs & debug ─────────────────────────────────────────────────
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dump.rdb
+*.log
+
+# ── Caches ───────────────────────────────────────────────────────
+.cache/
+
+# ── Tooling & IDE ────────────────────────────────────────────────
+.git/
+.DS_Store
+.vscode/
+.idea/
+.vercel/
+.claude/
+memory/
+.emergent/
+chainlit.md
+.chainlit/
+
+# ── Docker (deployment config, not source logic) ─────────────────
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# ── Coverage & test artifacts ────────────────────────────────────
+/coverage/
+/tests/

@@ -89,7 +89,7 @@ export async function GET(request, { params }) {
         }
 
         if (include.has('resources')) {
-            fetchPromises.resources = database.collection('client_resources').find({ client_id: clientData.id }).sort({ created_at: -1 }).toArray()
+            fetchPromises.resources = database.collection('client_resources').find({ client_id: clientData.id, scope: { $ne: 'internal' } }).sort({ created_at: -1 }).toArray()
         }
 
         // Execute all promises in parallel
